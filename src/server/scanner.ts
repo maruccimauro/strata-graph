@@ -1,8 +1,9 @@
 /**
- * Filesystem scanner (connected mode). Scans a project's docs/ against the SDLC
- * canon and reports which documents exist, any extra docs on disk, and edges
- * discovered from real Markdown links (the hybrid refinement). Node-only; the
- * browser never runs this.
+ * Filesystem scanner (connected mode). Scans a configurable data directory
+ * against the SDLC canon and reports which documents exist, any extra docs on
+ * disk, and edges discovered from real Markdown links (the hybrid refinement).
+ * The directory is a parameter, not a fixed `docs/`, so the repo's own wiki and
+ * the engine's data folder stay separate. Node-only; the browser never runs it.
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve, relative, dirname } from "node:path";
@@ -75,8 +76,10 @@ function projectName(root: string): string {
   return root.split(/[\\/]/).filter(Boolean).pop() ?? "project";
 }
 
-export function scan(root: string): ScanResult {
-  const docsDir = join(root, "docs");
+/** Scan `dataDir` (defaults to `<root>/docs` for back-compat) for the model's
+ *  documents; `root` is used only to derive the project name. */
+export function scan(root: string, dataDir: string = join(root, "docs")): ScanResult {
+  const docsDir = dataDir;
   const generated: Record<string, GeneratedInfo> = {};
   const extras: ExtraNode[] = [];
   const claimed = new Set<string>();

@@ -3,7 +3,10 @@
  * and a small API: real graph scan, layout-state persistence, open file/folder,
  * and a native file picker (Windows via PowerShell). Localhost only.
  *
- *   npx tsx src/server/index.ts --root <projectWithDocs> [--port 8777]
+ *   npx tsx src/server/index.ts --root <project> [--data <dir>] [--port 8777]
+ *
+ * --root is the project (used for the name and open file/folder); --data is the
+ * folder the model is scanned from and where state is saved (default <root>/docs).
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { existsSync, readFileSync, writeFileSync, statSync, mkdirSync } from "node:fs";
@@ -22,10 +25,11 @@ function arg(name: string, fallback: string): string {
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 const ROOT = resolve(arg("root", process.cwd()));
+const DATA = resolve(arg("data", join(ROOT, "docs")));
 const PORT = parseInt(arg("port", "8777"), 10);
 
 function loadState(): unknown {
-  const f = join(ROOT, "docs", STATE_FILE);
+  const f = join(DATA, STATE_FILE);
   if (existsSync(f)) {
     try {
       return JSON.parse(readFileSync(f, "utf8"));
@@ -36,9 +40,8 @@ function loadState(): unknown {
   return {};
 }
 function saveState(data: unknown): void {
-  const dir = join(ROOT, "docs");
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, STATE_FILE), JSON.stringify(data, null, 2), "utf8");
+  if (!existsSync(DATA)) mkdirSync(DATA, { recursive: true });
+  writeFileSync(join(DATA, STATE_FILE), JSON.stringify(data, null, 2), "utf8");
 }
 
 function hasCmd(cmd: string): boolean {
@@ -153,11 +156,11 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (req.method === "GET" && path === "/api/ping") {
-    sendJson(res, { ok: true, mode: "connected", name: scan(ROOT).name });
+    sendJson(res, { ok: true, mode: "connected", name: scan(ROOT, DATA).name });
     return;
   }
   if (req.method === "GET" && path === "/api/graph") {
-    const result = scan(ROOT);
+    const result = scan(ROOT, DATA);
     sendJson(res, { graph: buildSdlcModel({ scan: result }), state: loadState(), root: ROOT });
     return;
   }
@@ -181,5 +184,6 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`Strata (connected) -> http://127.0.0.1:${PORT}/`);
   console.log(`Project root: ${ROOT}`);
+  console.log(`Data folder:  ${DATA}`);
   console.log("Ctrl+C to stop.");
 });
