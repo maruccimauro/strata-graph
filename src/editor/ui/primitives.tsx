@@ -1,4 +1,4 @@
-import type { ReactNode, CSSProperties } from "react";
+import { useState, type ReactNode, type CSSProperties, type Ref } from "react";
 import { PANEL, INK, MUTED } from "../theme";
 
 /** Shared button. `variant`: default | primary | ghost. */
@@ -47,15 +47,18 @@ export function Panel({
   children,
   style,
   actions,
+  innerRef,
 }: {
   title?: string;
   onClose?: () => void;
   children: ReactNode;
   style?: CSSProperties;
   actions?: ReactNode;
+  innerRef?: Ref<HTMLDivElement>;
 }) {
   return (
     <div
+      ref={innerRef}
       style={{
         position: "fixed",
         background: PANEL,
@@ -97,6 +100,78 @@ export function Panel({
         </div>
       )}
       <div style={{ padding: "10px 12px" }}>{children}</div>
+    </div>
+  );
+}
+
+const inputStyle: CSSProperties = {
+  font: "inherit",
+  fontSize: ".82rem",
+  padding: "5px 8px",
+  borderRadius: 6,
+  border: "1px solid var(--line)",
+  background: "var(--panel)",
+  color: "var(--ink)",
+  width: "100%",
+};
+
+/** Filterable select: type to filter, click to choose. */
+export function Combobox({
+  value,
+  options,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const sel = options.find((o) => o.value === value);
+  const filtered = options.filter((o) => o.label.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        value={open ? q : (sel?.label ?? "")}
+        placeholder={placeholder}
+        onFocus={() => { setOpen(true); setQ(""); }}
+        onChange={(e) => setQ(e.target.value)}
+        onBlur={() => setTimeout(() => setOpen(false), 130)}
+        style={inputStyle}
+      />
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            marginTop: 2,
+            maxHeight: 200,
+            overflowY: "auto",
+            background: PANEL,
+            border: "1px solid var(--line)",
+            borderRadius: 7,
+            boxShadow: "0 10px 24px rgba(0,0,0,.26)",
+            zIndex: 80,
+          }}
+        >
+          {filtered.map((o) => (
+            <div
+              key={o.value}
+              onMouseDown={() => { onChange(o.value); setOpen(false); }}
+              style={{ padding: "6px 9px", fontSize: ".82rem", cursor: "pointer", color: o.value === value ? "var(--accent)" : INK }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(127,127,127,.12)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              {o.label}
+            </div>
+          ))}
+          {filtered.length === 0 && <div style={{ padding: "6px 9px", fontSize: ".8rem", color: MUTED }}>No matches</div>}
+        </div>
+      )}
     </div>
   );
 }

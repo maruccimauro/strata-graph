@@ -46,10 +46,11 @@ export interface StrataCanvasProps {
   onActivateNode: (node: GraphNode, x: number, y: number) => void;
   onActivateEdge: (id: string, source: string, target: string, x: number, y: number) => void;
   onPaneClick: () => void;
+  onCloseOverlays: () => void;
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick } = props;
+  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays } = props;
   const [selected, setSelected] = useState<string | null>(null);
 
   const nodeIndex = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model]);
@@ -120,6 +121,7 @@ export function StrataCanvas(props: StrataCanvasProps) {
         setSelected(null);
         onPaneClick();
       }}
+      onMoveStart={() => onCloseOverlays()}
       onConnect={(c) => {
         if (c.source && c.target && c.source !== c.target) onConnectNodes(c.source, c.target);
       }}
@@ -134,13 +136,16 @@ export function StrataCanvas(props: StrataCanvasProps) {
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       connectionMode={ConnectionMode.Loose}
+      connectionRadius={34}
       fitView
       minZoom={0.2}
       maxZoom={2}
       selectionOnDrag
-      panOnDrag={[2]}
+      panOnDrag={[1]}
+      panOnScroll={false}
       selectionMode={SelectionMode.Partial}
       multiSelectionKeyCode={["Meta", "Control", "Shift"]}
+      selectionKeyCode={null}
       deleteKeyCode={null}
       proOptions={{ hideAttribution: true }}
     >

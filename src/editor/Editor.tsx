@@ -4,6 +4,7 @@ import { toPng } from "html-to-image";
 
 import { StrataCanvas } from "./StrataCanvas";
 import { NodeOverlay } from "./NodeOverlay";
+import { ConnectPanel, type Direction } from "./ConnectPanel";
 import { TopBar } from "./ui/TopBar";
 import { Panel, Button, Field } from "./ui/primitives";
 import { buildRenderModel } from "./model";
@@ -29,6 +30,7 @@ export function Editor({ boot }: { boot: Boot }) {
   const [edgeOverlay, setEdgeOverlay] = useState<{ id: string; source: string; target: string; deletable: boolean; x: number; y: number } | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [pending, setPending] = useState<{ a: string; b: string } | null>(null);
+  const [connectFrom, setConnectFrom] = useState<GraphNode | null>(null);
 
   const prefs = state.prefs ?? DEFAULT_PREFS;
   const model = useMemo(() => buildRenderModel(graph, state), [graph, state]);
@@ -244,6 +246,19 @@ export function Editor({ boot }: { boot: Boot }) {
     });
   }, [rf, graph.meta.name]);
 
+  const createConnection = useCallback(
+    (targetId: string, direction: Direction) => {
+      if (!connectFrom) return;
+      const a = connectFrom.id;
+      const b = targetId;
+      if (direction === "comment") addEdge({ source: a, target: b, kind: "comment", origin: "manual" });
+      else if (direction === "to-dep-from") addEdge({ source: b, target: a, kind: "dependency", origin: "manual", via: "manual" });
+      else addEdge({ source: a, target: b, kind: "dependency", origin: "manual", via: "manual" });
+      setConnectFrom(null);
+    },
+    [connectFrom, addEdge],
+  );
+
   const confirmConnection = useCallback(
     (kind: "a-dep-b" | "b-dep-a" | "comment") => {
       if (!pending) return;
@@ -267,8 +282,10 @@ export function Editor({ boot }: { boot: Boot }) {
         redo();
       } else if (e.key === "Escape") {
         setOverlay(null);
+        setEdgeOverlay(null);
         setPrefsOpen(false);
         setPending(null);
+        setConnectFrom(null);
       } else if (e.key.toLowerCase() === "n" && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== "INPUT") {
         void onAddNode();
       }
@@ -303,6 +320,7 @@ export function Editor({ boot }: { boot: Boot }) {
       />
       <div
         style={{ flex: 1, minHeight: 0 }}
+        onContextMenu={(e) => e.preventDefault()}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
@@ -331,6 +349,10 @@ export function Editor({ boot }: { boot: Boot }) {
             setOverlay(null);
             setEdgeOverlay(null);
           }}
+          onCloseOverlays={() => {
+            setOverlay(null);
+            setEdgeOverlay(null);
+          }}
         />
       </div>
 
@@ -344,10 +366,24 @@ export function Editor({ boot }: { boot: Boot }) {
           onOpen={openPath}
           onSetSection={onSetSection}
           onAddComment={onAddComment}
+          onConnectPanel={(node) => {
+            setOverlay(null);
+            setConnectFrom(node);
+          }}
           onDelete={(id) => {
             onDeleteNode(id);
             setOverlay(null);
           }}
+        />
+      )}
+
+      {connectFrom && (
+        <ConnectPanel
+          fromNode={connectFrom}
+          nodes={model.nodes}
+          sections={model.sections}
+          onCreate={createConnection}
+          onClose={() => setConnectFrom(null)}
         />
       )}
 

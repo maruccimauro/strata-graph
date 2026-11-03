@@ -1,4 +1,5 @@
-import { Panel, Button, Field } from "./ui/primitives";
+import { useEffect, useRef } from "react";
+import { Panel, Button, Field, Combobox } from "./ui/primitives";
 import { MUTED } from "./theme";
 import type { GraphNode, Section } from "../core/types";
 
@@ -11,7 +12,29 @@ export interface NodeOverlayProps {
   onOpen: (path: string, kind: "file" | "folder") => void;
   onSetSection: (id: string, sectionId: string) => void;
   onAddComment: (nodeId: string) => void;
+  onConnectPanel: (node: GraphNode) => void;
   onDelete: (id: string) => void;
+}
+
+/** Auto-dismiss: closes when the pointer never enters the panel and drifts
+ *  >20px away, or once it has entered and then left. */
+function useHoverDismiss(ref: React.RefObject<HTMLDivElement | null>, onClose: () => void) {
+  useEffect(() => {
+    let entered = false;
+    const onMove = (e: MouseEvent) => {
+      const el = ref.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (inside) { entered = true; return; }
+      if (entered) { onClose(); return; }
+      const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right);
+      const dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
+      if (Math.hypot(dx, dy) > 20) onClose();
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [ref, onClose]);
 }
 
 function Flag({ text, tone }: { text: string; tone: "auto" | "manual" | "gen" | "miss" | "comment" }) {
@@ -30,14 +53,16 @@ function Flag({ text, tone }: { text: string; tone: "auto" | "manual" | "gen" | 
   );
 }
 
-export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, onSetSection, onAddComment, onDelete }: NodeOverlayProps) {
+export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, onSetSection, onAddComment, onConnectPanel, onDelete }: NodeOverlayProps) {
   const isSection = node.kind === "section";
   const isComment = node.kind === "comment";
   const x = Math.min(at.x + 12, window.innerWidth - 330);
-  const y = Math.min(at.y + 12, window.innerHeight - 220);
+  const y = Math.min(at.y + 12, window.innerHeight - 240);
+  const ref = useRef<HTMLDivElement>(null);
+  useHoverDismiss(ref, onClose);
 
   return (
-    <Panel title={node.label} onClose={onClose} style={{ left: x, top: y }}>
+    <Panel title={node.label} onClose={onClose} style={{ left: x, top: y }} innerRef={ref}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         {isComment ? (
           <Flag text="🏷️ Comment" tone="comment" />
@@ -74,27 +99,24 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
         <div style={{ fontSize: ".76rem", color: MUTED, margin: "2px 0 8px" }}>No file associated.</div>
       )}
 
-      {/* section reassignment */}
+      {/* section reassignment (filterable) */}
       {!isSection && (
         <Field label="Section">
-          <select
-            value={node.sectionId ?? ""}
-            onChange={(e) => onSetSection(node.id, e.target.value)}
-            style={{ font: "inherit", fontSize: ".8rem", padding: "3px 6px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--panel)", color: "var(--ink)" }}
-          >
-            <option value="">— none —</option>
-            {sections.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          <div style={{ width: 150 }}>
+            <Combobox
+              value={node.sectionId ?? ""}
+              options={[{ value: "", label: "— none —" }, ...sections.map((s) => ({ value: s.id, label: s.label }))]}
+              onChange={(v) => onSetSection(node.id, v)}
+              placeholder="Section…"
+            />
+          </div>
         </Field>
       )}
 
       {/* actions */}
       {!isSection && (
-        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+          <Button onClick={() => onConnectPanel(node)}>🔗 Connect…</Button>
           <Button onClick={() => onAddComment(node.id)}>🏷️ Comment</Button>
           {node.origin === "manual" && (
             <Button variant="ghost" style={{ color: "var(--ghost)" }} onClick={() => onDelete(node.id)}>
