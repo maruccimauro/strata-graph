@@ -358,6 +358,7 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, selecte
         style: sel
           ? { stroke: "#caa83a", strokeWidth: 1.8, strokeDasharray: "2 3", opacity: 1, filter: glowFilter("#caa83a") }
           : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
+        className: sel ? "edge-selected" : undefined,
         data: { kind: "comment" },
       });
       continue;
@@ -392,6 +393,7 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, selecte
       source: e.source,
       target: e.target,
       style,
+      className: e.id === selectedEdge ? "edge-selected" : undefined,
       data: { originDot: true, kind: "dependency" },
       markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke as string },
     });
