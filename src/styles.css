@@ -1,0 +1,67 @@
+:root {
+  --bg: #f4f6f8;
+  --ink: #152029;
+  --muted: #5a6b78;
+  --line: #dce4ea;
+  --panel: #ffffff;
+  --accent: #0a7d7d;
+  --up: #0a7d7d;
+  --down: #d98410;
+  --ghost: #c0392b;
+}
+:root[data-theme="dark"] {
+  --bg: #0e1419;
+  --ink: #e7eef3;
+  --muted: #9fb0bd;
+  --line: #26333d;
+  --panel: #161f27;
+  --accent: #2ec4c4;
+  --up: #2ec4c4;
+  --down: #e8a35a;
+  --ghost: #ef7b85;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1419;
+    --ink: #e7eef3;
+    --muted: #9fb0bd;
+    --line: #26333d;
+    --panel: #161f27;
+    --accent: #2ec4c4;
+    --up: #2ec4c4;
+    --down: #e8a35a;
+    --ghost: #ef7b85;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+}
+
+/* connection points: subtle, only on node hover (addresses "handles too loud") */
+.react-flow__handle {
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border: 1.5px solid var(--panel);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.react-flow__node:hover .react-flow__handle {
+  opacity: 0.85;
+}
+/* right-drag pans: show a grabbing cursor while panning */
+.react-flow__pane.dragging {
+  cursor: grabbing;
+}
