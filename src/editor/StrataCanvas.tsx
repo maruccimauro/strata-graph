@@ -47,11 +47,13 @@ export interface StrataCanvasProps {
   onActivateEdge: (id: string, source: string, target: string, x: number, y: number) => void;
   onPaneClick: () => void;
   onCloseOverlays: () => void;
+  onSelectionChange: (ids: string[]) => void;
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays } = props;
+  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange } = props;
   const [selected, setSelected] = useState<string | null>(null);
+  const lastPointer = useRef({ x: 0, y: 0 });
 
   const nodeIndex = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model]);
   const { rfNodes, rfEdges } = useMemo(
@@ -61,7 +63,17 @@ export function StrataCanvas(props: StrataCanvasProps) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges);
-  useEffect(() => setNodes(rfNodes), [rfNodes, setNodes]);
+  // Rebuilding from rfNodes would drop React Flow's own selection flags, which
+  // breaks multi-select (N-10) and deselects a group on drop (N-17). Carry the
+  // current selection across each rebuild.
+  useEffect(
+    () =>
+      setNodes((prev) => {
+        const sel = new Set(prev.filter((n) => n.selected).map((n) => n.id));
+        return sel.size ? rfNodes.map((n) => (sel.has(n.id) ? { ...n, selected: true } : n)) : rfNodes;
+      }),
+    [rfNodes, setNodes],
+  );
   useEffect(() => setEdges(rfEdges), [rfEdges, setEdges]);
 
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -80,12 +92,27 @@ export function StrataCanvas(props: StrataCanvasProps) {
   };
   const onNodeMouseEnter: NodeMouseHandler = (e, node) => {
     if (node.type === "band") return;
-    const { clientX, clientY } = e;
+    lastPointer.current = { x: e.clientX, y: e.clientY };
     clearHover();
     hoverTimer.current = setTimeout(() => {
+      // N-11: if the pointer is over the node border (handle zone), skip the
+      // overlay — the user is most likely starting an edge from a handle.
+      const el = document.querySelector(`.react-flow__node[data-id="${CSS.escape(node.id)}"]`);
+      const { x, y } = lastPointer.current;
+      if (el) {
+        const r = el.getBoundingClientRect();
+        // Adaptive border band so short nodes keep a usable center (handles sit
+        // on the edges; hovering them should not pop the overlay).
+        const mx = Math.min(12, r.width * 0.3);
+        const my = Math.min(12, r.height * 0.3);
+        if (x - r.left < mx || r.right - x < mx || y - r.top < my || r.bottom - y < my) return;
+      }
       const g = nodeIndex.get(node.id);
-      if (g) onActivateNode(g, clientX, clientY);
+      if (g) onActivateNode(g, x, y);
     }, 450);
+  };
+  const onNodeMouseMove: NodeMouseHandler = (e) => {
+    lastPointer.current = { x: e.clientX, y: e.clientY };
   };
   const onEdgeMouseEnter: EdgeMouseHandler = (e, edge) => {
     const { clientX, clientY } = e;
@@ -114,7 +141,9 @@ export function StrataCanvas(props: StrataCanvasProps) {
       onNodeClick={onNodeClick}
       onNodeDoubleClick={onNodeDoubleClick}
       onNodeMouseEnter={onNodeMouseEnter}
+      onNodeMouseMove={onNodeMouseMove}
       onNodeMouseLeave={clearHover}
+      onSelectionChange={({ nodes: sel }) => onSelectionChange(sel.filter((n) => n.type !== "band").map((n) => n.id))}
       onEdgeMouseEnter={onEdgeMouseEnter}
       onEdgeMouseLeave={clearHover}
       onPaneClick={() => {

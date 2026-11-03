@@ -31,6 +31,7 @@ export function Editor({ boot }: { boot: Boot }) {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [pending, setPending] = useState<{ a: string; b: string } | null>(null);
   const [connectFrom, setConnectFrom] = useState<GraphNode | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const prefs = state.prefs ?? DEFAULT_PREFS;
   const model = useMemo(() => buildRenderModel(graph, state), [graph, state]);
@@ -171,6 +172,16 @@ export function Editor({ boot }: { boot: Boot }) {
       commit((s) => {
         const cur = (s.nodeMeta ?? {})[id] ?? {};
         return { ...s, nodeMeta: { ...(s.nodeMeta ?? {}), [id]: { ...cur, ...m } } };
+      }),
+    [commit],
+  );
+
+  const onSetNodeMetaMany = useCallback(
+    (ids: string[], m: { dueAt?: number; locked?: boolean }) =>
+      commit((s) => {
+        const nm = { ...(s.nodeMeta ?? {}) };
+        for (const id of ids) nm[id] = { ...(nm[id] ?? {}), ...m };
+        return { ...s, nodeMeta: nm };
       }),
     [commit],
   );
@@ -362,6 +373,7 @@ export function Editor({ boot }: { boot: Boot }) {
             setOverlay(null);
             setEdgeOverlay(null);
           }}
+          onSelectionChange={setSelectedIds}
         />
       </div>
 
@@ -475,6 +487,37 @@ export function Editor({ boot }: { boot: Boot }) {
             </Button>
           </div>
         </Panel>
+      )}
+
+      {selectedIds.length >= 2 && (
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: 24,
+            transform: "translateX(-50%)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "7px 11px",
+            background: "var(--panel)",
+            border: "1px solid var(--line)",
+            borderRadius: 11,
+            boxShadow: "0 12px 34px rgba(0,0,0,.30)",
+            zIndex: 60,
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <span style={{ fontSize: ".8rem", color: MUTED, marginRight: 2 }}>
+            <b style={{ color: "var(--ink)" }}>{selectedIds.length}</b> selected
+          </span>
+          <Button title="Lock all selected (prevent moving)" onClick={() => onSetNodeMetaMany(selectedIds, { locked: true })}>
+            🔒 Lock all
+          </Button>
+          <Button title="Unlock all selected" onClick={() => onSetNodeMetaMany(selectedIds, { locked: false })}>
+            🔓 Unlock all
+          </Button>
+        </div>
       )}
     </div>
   );
