@@ -9,13 +9,13 @@ import { TopBar } from "./ui/TopBar";
 import { Panel, Button, Field } from "./ui/primitives";
 import { buildRenderModel } from "./model";
 import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs } from "./api";
-import type { GraphNode, GraphEdge } from "../core/types";
-import { toSgm } from "../core/sgm";
+import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
+import { toSgm, fromSgm } from "../core/sgm";
 import { isDark, MUTED } from "./theme";
 
 const THEME_KEY = "strata-theme";
 
-export function Editor({ boot }: { boot: Boot }) {
+export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model: GraphModel) => void }) {
   const graph = boot.graph;
   const connected = boot.mode === "connected";
   const rf = useReactFlow();
@@ -255,6 +255,27 @@ export function Editor({ boot }: { boot: Boot }) {
     URL.revokeObjectURL(url);
   }, [model, graph.meta.name]);
 
+  const onImportSgm = useCallback(() => {
+    if (!onLoadModel) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".sgm,application/json";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          onLoadModel(fromSgm(String(reader.result)));
+        } catch (e) {
+          window.alert(e instanceof Error ? e.message : "Invalid .sgm file.");
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }, [onLoadModel]);
+
   const onExportPng = useCallback(() => {
     const el = document.querySelector(".react-flow__viewport") as HTMLElement | null;
     if (!el) return;
@@ -342,6 +363,7 @@ export function Editor({ boot }: { boot: Boot }) {
         onAddNode={() => void onAddNode()}
         onExportPng={onExportPng}
         onExportSgm={onExportSgm}
+        onImportSgm={onLoadModel ? onImportSgm : undefined}
         onFit={onFit}
         onResetLayout={onResetLayout}
         onToggleTheme={toggleTheme}
