@@ -27,6 +27,8 @@ export interface ViewerState {
   removedEdges?: string[];
   /** per-node section reassignments. */
   sectionOverrides?: Record<string, string>;
+  /** per-section hue overrides (0-360) over the built-in model's colors. */
+  sectionHues?: Record<string, number>;
   /** per-node metadata overrides (due date, lock, creation date) applied over
    *  the base graph, so they work for auto nodes too, not only manual ones. */
   nodeMeta?: Record<string, { createdAt?: number; dueAt?: number; locked?: boolean }>;

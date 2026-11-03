@@ -7,6 +7,7 @@ import type { ViewerState } from "./api";
 export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphModel {
   const pos = state.pos ?? {};
   const overrides = state.sectionOverrides ?? {};
+  const hues = state.sectionHues ?? {};
   const meta = state.nodeMeta ?? {};
   const hideMissing = state.prefs?.hideMissing ?? false;
   const seen = new Set(state.seenGenerated ?? []);
@@ -47,5 +48,7 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
     .concat(state.manualEdges ?? [])
     .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
 
-  return { ...graph, nodes, edges };
+  const sections = graph.sections.map((s) => (hues[s.id] !== undefined ? { ...s, hue: hues[s.id] } : s));
+
+  return { ...graph, sections, nodes, edges };
 }

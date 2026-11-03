@@ -232,6 +232,19 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
 
   const onResetLayout = useCallback(() => commit((s) => ({ ...s, pos: {} })), [commit]);
   const setPrefs = useCallback((p: Partial<Prefs>) => patch((s) => ({ ...s, prefs: { ...(s.prefs ?? DEFAULT_PREFS), ...p } })), [patch]);
+  const setSectionHue = useCallback(
+    (id: string, hue: number) => patch((s) => ({ ...s, sectionHues: { ...(s.sectionHues ?? {}), [id]: hue } })),
+    [patch],
+  );
+  const resetSectionHue = useCallback(
+    (id: string) =>
+      patch((s) => {
+        const next = { ...(s.sectionHues ?? {}) };
+        delete next[id];
+        return { ...s, sectionHues: next };
+      }),
+    [patch],
+  );
 
   const toggleTheme = useCallback(() => {
     const next = isDark() ? "light" : "dark";
@@ -487,7 +500,15 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
       )}
 
       {prefsOpen && (
-        <PreferencesPanel prefs={prefs} onChange={setPrefs} onClose={() => setPrefsOpen(false)} />
+        <PreferencesPanel
+          prefs={prefs}
+          onChange={setPrefs}
+          sections={model.sections}
+          customHues={state.sectionHues ?? {}}
+          onSectionHue={setSectionHue}
+          onResetSectionHue={resetSectionHue}
+          onClose={() => setPrefsOpen(false)}
+        />
       )}
 
       {pending && (

@@ -1,15 +1,17 @@
 import { useState, type ReactNode } from "react";
-import { MUTED } from "../theme";
+import { MUTED, accent } from "../theme";
 import { Field } from "./primitives";
 import type { Prefs } from "../api";
+import type { Section } from "../../core/types";
 
 /** Preference categories. Only categories with real settings are listed: no
  *  empty placeholder tabs. Add a new entry here as a category gains content. */
-type Category = "general" | "interface";
+type Category = "general" | "interface" | "sections";
 
 const CATEGORIES: { id: Category; label: string; icon: string }[] = [
   { id: "general", label: "General", icon: "⚙" },
   { id: "interface", label: "Interface", icon: "◧" },
+  { id: "sections", label: "Sections", icon: "▤" },
 ];
 
 /** Preferences as a two-pane panel: category list on the left, settings on the
@@ -17,10 +19,18 @@ const CATEGORIES: { id: Category; label: string; icon: string }[] = [
 export function PreferencesPanel({
   prefs,
   onChange,
+  sections,
+  customHues,
+  onSectionHue,
+  onResetSectionHue,
   onClose,
 }: {
   prefs: Prefs;
   onChange: (p: Partial<Prefs>) => void;
+  sections: Section[];
+  customHues: Record<string, number>;
+  onSectionHue: (id: string, hue: number) => void;
+  onResetSectionHue: (id: string) => void;
   onClose: () => void;
 }) {
   const [cat, setCat] = useState<Category>("general");
@@ -107,9 +117,17 @@ export function PreferencesPanel({
           })}
         </nav>
 
-        <div style={{ flex: 1, padding: "12px 16px", minWidth: 0 }}>
+        <div style={{ flex: 1, padding: "12px 16px", minWidth: 0, maxHeight: "min(70vh, 520px)", overflowY: "auto" }}>
           {cat === "general" && <GeneralPane />}
           {cat === "interface" && <InterfacePane prefs={prefs} onChange={onChange} />}
+          {cat === "sections" && (
+            <SectionsPane
+              sections={sections}
+              customHues={customHues}
+              onSectionHue={onSectionHue}
+              onResetSectionHue={onResetSectionHue}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -165,6 +183,60 @@ function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partia
       <Field label="Show dependency edges">
         <input type="checkbox" checked={prefs.showDeps} onChange={(e) => onChange({ showDeps: e.target.checked })} />
       </Field>
+    </Group>
+  );
+}
+
+function SectionsPane({
+  sections,
+  customHues,
+  onSectionHue,
+  onResetSectionHue,
+}: {
+  sections: Section[];
+  customHues: Record<string, number>;
+  onSectionHue: (id: string, hue: number) => void;
+  onResetSectionHue: (id: string) => void;
+}) {
+  const ordered = [...sections].sort((a, b) => a.order - b.order);
+  return (
+    <Group title="Section colors">
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {ordered.map((s) => {
+          const custom = customHues[s.id] !== undefined;
+          return (
+            <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span
+                  aria-hidden
+                  style={{ width: 14, height: 14, borderRadius: 4, background: accent(s.hue), border: "1px solid var(--line)", flexShrink: 0 }}
+                />
+                <span style={{ fontSize: ".82rem", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {s.label}
+                </span>
+                {custom && (
+                  <button
+                    onClick={() => onResetSectionHue(s.id)}
+                    title="Reset to the built-in color"
+                    style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: ".72rem" }}
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={360}
+                value={s.hue}
+                aria-label={`${s.label} hue`}
+                onChange={(e) => onSectionHue(s.id, Number(e.target.value))}
+                style={{ width: "100%", accentColor: accent(s.hue) }}
+              />
+            </div>
+          );
+        })}
+      </div>
     </Group>
   );
 }
