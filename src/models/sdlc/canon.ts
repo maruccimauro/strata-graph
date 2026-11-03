@@ -1,5 +1,5 @@
 /**
- * SDLC document canon — the first Strata template. Mirrors the "Stage
+ * SDLC document canon — the first built-in Strata Graph Model. Mirrors the "Stage
  * deliverables" tables of the sdlc-starter-kit playbook and the traceability
  * chain (Conversation -> Decision -> Requirement -> Task -> Test).
  *

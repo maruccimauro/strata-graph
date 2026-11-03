@@ -1,16 +1,17 @@
 /**
  * Strata core contract — the GENERIC engine model. It knows nothing about the
- * SDLC (or any other domain): a template produces a GraphModel conforming to
- * these types, and the editor renders/edits it. SDLC is just the first template.
+ * SDLC (or any other domain). The portable document is a Strata Graph Model (a
+ * GraphModel conforming to these types, saved as .sgm), and the editor
+ * renders/edits it. SDLC is just the first built-in Strata Graph Model.
  */
 
 export type NodeKind = "section" | "doc" | "comment";
 
-/** generated: exists · missing: expected by the template but not yet created ·
- *  unavailable: existed and was removed (shown crossed out, excluded from counts). */
+/** generated: exists · missing: expected by the built-in model but not yet
+ *  created · unavailable: existed and was removed (crossed out, excluded from counts). */
 export type NodeStatus = "generated" | "missing" | "unavailable";
 
-/** auto: produced by the template/scanner · manual: added by the user. */
+/** auto: produced by the built-in model/scanner · manual: added by the user. */
 export type Origin = "auto" | "manual";
 
 export interface Section {
@@ -57,21 +58,14 @@ export interface GraphEdge {
   kind: "dependency" | "comment";
   origin: Origin;
   /** how the edge was established, for styling/trust. */
-  via?: "template" | "link" | "manual";
+  via?: "base" | "link" | "manual";
 }
 
+/** A Strata Graph Model: the engine's portable document (saved as .sgm). */
 export interface GraphModel {
-  meta: { name: string; template: string };
+  /** name of the model · base: id of the built-in model it derives from (or "custom"). */
+  meta: { name: string; base: string };
   sections: Section[];
   nodes: GraphNode[];
   edges: GraphEdge[];
-}
-
-/** A template defines a domain: its sections and how to turn a data source
- *  (a filesystem scan, a DB, an API) into a GraphModel. The scan itself lives
- *  in the server; here we keep the shape the editor consumes. */
-export interface Template {
-  id: string;
-  label: string;
-  sections: Section[];
 }

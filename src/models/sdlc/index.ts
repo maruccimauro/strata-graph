@@ -1,12 +1,9 @@
-import type { GraphModel, GraphNode, GraphEdge, Template } from "../../core/types";
+import type { GraphModel, GraphNode, GraphEdge } from "../../core/types";
 import type { ScanResult } from "../../server/scanner";
 import { SECTIONS, DOCUMENTS, EDGES } from "./canon";
 
-export const sdlcTemplate: Template = {
-  id: "sdlc",
-  label: "Software Delivery Lifecycle",
-  sections: SECTIONS,
-};
+/** Id of this built-in Strata Graph Model (stored in GraphModel.meta.base). */
+export const SDLC_BASE_ID = "sdlc";
 
 const DEMO_GENERATED = new Set([
   "decision-log",
@@ -68,17 +65,17 @@ export function buildSdlcModel(opts?: { name?: string; scan?: ScanResult }): Gra
 
   const edgeKeys = new Set<string>();
   const edges: GraphEdge[] = [];
-  const addEdge = (source: string, target: string, via: "template" | "link") => {
+  const addEdge = (source: string, target: string, via: "base" | "link") => {
     const key = `${source}->${target}`;
     if (source === target || edgeKeys.has(key)) return;
     edgeKeys.add(key);
     edges.push({ id: `e:${key}`, source, target, kind: "dependency", origin: "auto", via });
   };
-  for (const [s, t] of EDGES) addEdge(s, t, "template");
+  for (const [s, t] of EDGES) addEdge(s, t, "base");
   for (const [s, t] of scan?.linkEdges ?? []) addEdge(s, t, "link");
 
   return {
-    meta: { name: opts?.name ?? scan?.name ?? "Demo project", template: "sdlc" },
+    meta: { name: opts?.name ?? scan?.name ?? "Demo project", base: SDLC_BASE_ID },
     sections: SECTIONS,
     nodes: [...sectionNodes, ...docNodes, ...extraNodes],
     edges,

@@ -3,7 +3,7 @@
  * contained graph document: a versioned JSON envelope around a GraphModel
  * (meta, sections, nodes, edges) with positions and metadata already baked in,
  * so it reopens exactly as exported. The format is domain agnostic, like the
- * engine: a starter (SDLC or any other) just produces a GraphModel to wrap.
+ * engine: a built-in model (SDLC or any other) just produces a GraphModel to wrap.
  */
 import type { GraphModel } from "./types";
 

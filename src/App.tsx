@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { Editor } from "./editor/Editor";
-import { buildSdlcModel } from "./templates/sdlc";
+import { buildSdlcModel } from "./models/sdlc";
 import { boot as runBoot, type Boot } from "./editor/api";
 import { MUTED } from "./editor/theme";
 

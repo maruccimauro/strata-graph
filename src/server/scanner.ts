@@ -6,7 +6,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve, relative, dirname } from "node:path";
-import { SECTIONS, DOCUMENTS } from "../templates/sdlc/canon";
+import { SECTIONS, DOCUMENTS } from "../models/sdlc/canon";
 
 export interface GeneratedInfo {
   path: string; // relative to docs/, posix

@@ -11,7 +11,7 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile, execFileSync } from "node:child_process";
 import { scan } from "./scanner";
-import { buildSdlcModel } from "../templates/sdlc";
+import { buildSdlcModel } from "../models/sdlc";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DIST = join(REPO_ROOT, "dist", "index.html");

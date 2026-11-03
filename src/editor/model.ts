@@ -1,7 +1,7 @@
 import type { GraphModel, GraphNode, GraphEdge } from "../core/types";
 import type { ViewerState } from "./api";
 
-/** Merge the base (template/scan) graph with the user's editor state into the
+/** Merge the base (built-in model/scan) graph with the user's editor state into the
  *  concrete GraphModel the canvas renders: section overrides, saved positions,
  *  manual nodes/edges, removed auto edges, and the hide-missing preference. */
 export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphModel {
