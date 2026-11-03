@@ -356,6 +356,7 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null): { rfNo
       source: e.source,
       target: e.target,
       style,
+      data: { originDot: true },
       markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke as string },
     });
   }
