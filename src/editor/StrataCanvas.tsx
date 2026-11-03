@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -48,15 +48,15 @@ export interface StrataCanvasProps {
   onPaneClick: () => void;
   onCloseOverlays: () => void;
   onSelectionChange: (ids: string[]) => void;
+  selected: string | null;
+  onSelectNode: (id: string | null) => void;
   selectedEdge: string | null;
   onSelectEdge: (id: string | null) => void;
   onReconnectEdge: (edgeId: string, source: string, target: string) => void;
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selectedEdge, onSelectEdge, onReconnectEdge } = props;
-  const [selected, setSelected] = useState<string | null>(null);
-  const lastPointer = useRef({ x: 0, y: 0 });
+  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, onReconnectEdge } = props;
 
   const nodeIndex = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model]);
   const { rfNodes, rfEdges } = useMemo(
@@ -79,55 +79,105 @@ export function StrataCanvas(props: StrataCanvasProps) {
   );
   useEffect(() => setEdges(rfEdges), [rfEdges, setEdges]);
 
-  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clearHover = () => {
-    if (hoverTimer.current) clearTimeout(hoverTimer.current);
-    hoverTimer.current = null;
+  // Primary-click interaction model (N-26): a single click selects, a double
+  // click opens the overlay (sticky), and Alt + hover opens it transiently.
+  // There is no hover-to-open timer and no move-away auto-hide.
+  const altDown = useRef(false);
+  const transientNode = useRef<string | null>(null);
+  const transientEdge = useRef<string | null>(null);
+
+  const closeTransient = () => {
+    if (!transientNode.current && !transientEdge.current) return;
+    transientNode.current = null;
+    transientEdge.current = null;
+    onCloseOverlays();
   };
+
+  // Track the Alt key globally so entering a node/edge can open a transient
+  // overlay; releasing Alt (or losing window focus) closes any transient one.
+  useEffect(() => {
+    const kd = (e: KeyboardEvent) => {
+      if (e.key === "Alt") altDown.current = true;
+    };
+    const ku = (e: KeyboardEvent) => {
+      if (e.key !== "Alt") return;
+      altDown.current = false;
+      closeTransient();
+    };
+    const blur = () => {
+      altDown.current = false;
+      closeTransient();
+    };
+    window.addEventListener("keydown", kd);
+    window.addEventListener("keyup", ku);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", kd);
+      window.removeEventListener("keyup", ku);
+      window.removeEventListener("blur", blur);
+    };
+    // onCloseOverlays is stable; the refs are mutable and need no deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onCloseOverlays]);
 
   const onNodeClick: NodeMouseHandler = (_e, node) => {
     if (node.type === "band" || node.type === "section") return;
-    setSelected((cur) => (cur === node.id ? null : node.id));
+    onSelectEdge(null);
+    onSelectNode(selected === node.id ? null : node.id);
   };
   const onNodeDoubleClick: NodeMouseHandler = (e, node) => {
-    const g = nodeIndex.get(node.id);
-    if (g && node.type !== "band") onActivateNode(g, e.clientX, e.clientY);
-  };
-  const onNodeMouseEnter: NodeMouseHandler = (e, node) => {
     if (node.type === "band") return;
-    lastPointer.current = { x: e.clientX, y: e.clientY };
-    clearHover();
-    hoverTimer.current = setTimeout(() => {
-      // N-11: if the pointer is over the node border (handle zone), skip the
-      // overlay — the user is most likely starting an edge from a handle.
-      const el = document.querySelector(`.react-flow__node[data-id="${CSS.escape(node.id)}"]`);
-      const { x, y } = lastPointer.current;
-      if (el) {
-        const r = el.getBoundingClientRect();
-        // Adaptive border band so short nodes keep a usable center (handles sit
-        // on the edges; hovering them should not pop the overlay).
-        const mx = Math.min(12, r.width * 0.3);
-        const my = Math.min(12, r.height * 0.3);
-        if (x - r.left < mx || r.right - x < mx || y - r.top < my || r.bottom - y < my) return;
-      }
-      const g = nodeIndex.get(node.id);
-      if (g) onActivateNode(g, x, y);
-    }, 450);
+    const g = nodeIndex.get(node.id);
+    if (!g) return;
+    // Becoming sticky: drop transient tracking so a later leave/Alt-up keeps it.
+    transientNode.current = null;
+    transientEdge.current = null;
+    if (node.type !== "section") {
+      onSelectEdge(null);
+      onSelectNode(node.id);
+    }
+    onActivateNode(g, e.clientX, e.clientY);
   };
-  const onNodeMouseMove: NodeMouseHandler = (e) => {
-    lastPointer.current = { x: e.clientX, y: e.clientY };
+  const openTransientNode: NodeMouseHandler = (e, node) => {
+    if (!altDown.current || node.type === "band") return;
+    if (transientNode.current === node.id) return;
+    const g = nodeIndex.get(node.id);
+    if (!g) return;
+    transientNode.current = node.id;
+    transientEdge.current = null;
+    onActivateNode(g, e.clientX, e.clientY);
   };
-  const onEdgeMouseEnter: EdgeMouseHandler = (e, edge) => {
-    const { clientX, clientY } = e;
-    clearHover();
-    hoverTimer.current = setTimeout(() => onActivateEdge(edge.id, edge.source, edge.target, clientX, clientY), 400);
+  const onNodeMouseLeave: NodeMouseHandler = () => {
+    if (transientNode.current) closeTransient();
+  };
+
+  const openTransientEdge: EdgeMouseHandler = (e, edge) => {
+    if (!altDown.current || edge.id.startsWith("branch:")) return;
+    if (transientEdge.current === edge.id) return;
+    transientEdge.current = edge.id;
+    transientNode.current = null;
+    onActivateEdge(edge.id, edge.source, edge.target, e.clientX, e.clientY);
+  };
+  const onEdgeMouseLeave: EdgeMouseHandler = () => {
+    if (transientEdge.current) closeTransient();
   };
   // Click a dependency/comment edge to select it; pressing Delete then removes
-  // it (handled in Editor). Auto branch edges are not selectable (not deletable).
+  // it (handled in Editor). Double click opens its overlay (sticky). Auto branch
+  // edges are not selectable and have no overlay.
   const onEdgeClick: EdgeMouseHandler = (e, edge) => {
     e.stopPropagation();
     if (edge.id.startsWith("branch:")) return;
+    onSelectNode(null);
     onSelectEdge(selectedEdge === edge.id ? null : edge.id);
+  };
+  const onEdgeDoubleClick: EdgeMouseHandler = (e, edge) => {
+    e.stopPropagation();
+    if (edge.id.startsWith("branch:")) return;
+    transientNode.current = null;
+    transientEdge.current = null;
+    onSelectNode(null);
+    onSelectEdge(edge.id);
+    onActivateEdge(edge.id, edge.source, edge.target, e.clientX, e.clientY);
   };
 
   // Section central node moves along one axis only: horizontal layout locks Y
@@ -157,15 +207,18 @@ export function StrataCanvas(props: StrataCanvasProps) {
       onEdgesChange={onEdgesChange}
       onNodeClick={onNodeClick}
       onNodeDoubleClick={onNodeDoubleClick}
-      onNodeMouseEnter={onNodeMouseEnter}
-      onNodeMouseMove={onNodeMouseMove}
-      onNodeMouseLeave={clearHover}
+      onNodeMouseEnter={openTransientNode}
+      onNodeMouseMove={openTransientNode}
+      onNodeMouseLeave={onNodeMouseLeave}
       onSelectionChange={({ nodes: sel }) => onSelectionChange(sel.filter((n) => n.type !== "band").map((n) => n.id))}
-      onEdgeMouseEnter={onEdgeMouseEnter}
-      onEdgeMouseLeave={clearHover}
+      onEdgeMouseEnter={openTransientEdge}
+      onEdgeMouseMove={openTransientEdge}
+      onEdgeMouseLeave={onEdgeMouseLeave}
       onEdgeClick={onEdgeClick}
+      onEdgeDoubleClick={onEdgeDoubleClick}
       onReconnectStart={() => {
-        clearHover();
+        transientNode.current = null;
+        transientEdge.current = null;
         onCloseOverlays();
       }}
       onReconnect={(oldEdge, conn) => {
@@ -173,7 +226,7 @@ export function StrataCanvas(props: StrataCanvasProps) {
         onReconnectEdge(oldEdge.id, conn.source, conn.target);
       }}
       onPaneClick={() => {
-        setSelected(null);
+        onSelectNode(null);
         onSelectEdge(null);
         onPaneClick();
       }}

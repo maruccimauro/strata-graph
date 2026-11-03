@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Panel, Button, Field, Combobox } from "./ui/primitives";
 import { MUTED } from "./theme";
 import type { GraphNode, Section } from "../core/types";
@@ -15,27 +15,6 @@ export interface NodeOverlayProps {
   onAddComment: (nodeId: string) => void;
   onConnectPanel: (node: GraphNode) => void;
   onDelete: (id: string) => void;
-}
-
-/** Auto-dismiss: closes when the pointer never enters the panel and drifts
- *  >20px away, or once it has entered and then left. */
-function useHoverDismiss(ref: React.RefObject<HTMLDivElement | null>, onClose: () => void) {
-  useEffect(() => {
-    let entered = false;
-    const onMove = (e: MouseEvent) => {
-      const el = ref.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
-      if (inside) { entered = true; return; }
-      if (entered) { onClose(); return; }
-      const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right);
-      const dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
-      if (Math.hypot(dx, dy) > 20) onClose();
-    };
-    window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
-  }, [ref, onClose]);
 }
 
 function Flag({ text, tone }: { text: string; tone: "auto" | "manual" | "gen" | "miss" | "comment" }) {
@@ -127,11 +106,9 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
   const isComment = node.kind === "comment";
   const x = Math.min(at.x + 12, window.innerWidth - 330);
   const y = Math.min(at.y + 12, window.innerHeight - 300);
-  const ref = useRef<HTMLDivElement>(null);
-  useHoverDismiss(ref, onClose);
 
   return (
-    <Panel title={node.label} onClose={onClose} style={{ left: x, top: y }} innerRef={ref}>
+    <Panel title={node.label} onClose={onClose} style={{ left: x, top: y }}>
       {/* action bar — icon buttons, below the title, above the flags row */}
       <div style={{ display: "flex", gap: 6, marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid var(--line)" }}>
         <IconAction

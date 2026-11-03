@@ -43,6 +43,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   const [pending, setPending] = useState<{ a: string; b: string } | null>(null);
   const [connectFrom, setConnectFrom] = useState<GraphNode | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
 
   const prefs = state.prefs ?? DEFAULT_PREFS;
@@ -408,6 +409,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
         setPrefsOpen(false);
         setPending(null);
         setConnectFrom(null);
+        setSelectedNode(null);
         setSelectedEdge(null);
       } else if ((e.key === "Delete" || e.key === "Backspace") && isEditableTarget(e.target) === false) {
         // Delete the selected dependency/comment edge (auto branch edges are
@@ -483,6 +485,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           onPaneClick={() => {
             setOverlay(null);
             setEdgeOverlay(null);
+            setSelectedNode(null);
             setSelectedEdge(null);
           }}
           onCloseOverlays={() => {
@@ -490,6 +493,8 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
             setEdgeOverlay(null);
           }}
           onSelectionChange={setSelectedIds}
+          selected={selectedNode}
+          onSelectNode={setSelectedNode}
           selectedEdge={selectedEdge}
           onSelectEdge={setSelectedEdge}
           onReconnectEdge={onReconnectEdge}
