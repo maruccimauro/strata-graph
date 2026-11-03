@@ -33,7 +33,8 @@ Captured requirements for the editor. Grouped by theme. Many canvas items come
 ## Remaining (needs visual QA — do with the app open)
 - [ ] **Bands auto-grow to content**: dragging a node past a band expands that band instead of overlapping the next. (high value, deferred: needs on-screen tuning)
 - [ ] i18n multi-language (English done; add a language switch + es dict).
-- [ ] Subtle action bar on hover overlays (quick delete / comment / change-section as icon buttons).
+- [x] Subtle action bar on hover overlays (icon buttons: lock / connect / comment / delete, with tooltips).
+- [x] Per-node metadata: lock (prevent dragging), creation date, due date with a live countdown and urgency indicator.
 - [ ] Direction icon at the edge origin; edge color already follows target section.
 - [ ] Advanced export: pick sections / include-or-exclude comments.
 
