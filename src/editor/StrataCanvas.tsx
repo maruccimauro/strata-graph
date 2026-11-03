@@ -212,6 +212,12 @@ export function StrataCanvas(props: StrataCanvasProps) {
   );
 }
 
+/** Glow used to mark a selected edge: a soft halo in the edge color instead of a
+ *  heavy stroke. */
+function glowFilter(color: string): string {
+  return `drop-shadow(0 0 2px ${color}) drop-shadow(0 0 5px ${color})`;
+}
+
 function reach(map: Map<string, string[]>, start: string): Set<string> {
   const out = new Set<string>();
   const stack = [start];
@@ -350,7 +356,7 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, selecte
         source: e.source,
         target: e.target,
         style: sel
-          ? { stroke: "#caa83a", strokeWidth: 3, strokeDasharray: "2 3", opacity: 1 }
+          ? { stroke: "#caa83a", strokeWidth: 1.8, strokeDasharray: "2 3", opacity: 1, filter: glowFilter("#caa83a") }
           : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
         data: { kind: "comment" },
       });
@@ -374,8 +380,12 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, selecte
               strokeDasharray: ghost ? "5 4" : undefined,
               opacity: selected ? 0.07 : ghost ? 0.5 : 0.55,
             };
-    // A selected edge is drawn bold and solid so it reads as the delete target.
-    const style = e.id === selectedEdge ? { ...base, strokeWidth: 3.4, opacity: 1, strokeDasharray: undefined } : base;
+    // A selected edge keeps its weight but gains a glow so it reads as the
+    // active target without the heavy stroke.
+    const style =
+      e.id === selectedEdge
+        ? { ...base, strokeWidth: Math.max(base.strokeWidth, 2), opacity: 1, filter: glowFilter(base.stroke) }
+        : base;
     rfEdges.push({
       id: e.id,
       type: "floating",
