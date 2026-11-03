@@ -127,6 +127,10 @@ export function TopBar(p: TopBarProps) {
         <Menu label="View" open={menu === "view"} onToggle={() => toggle("view")}>
           <MenuItem label="Fit to screen" onClick={() => { close(); p.onFit(); }} />
           <MenuItem label="Reset layout" onClick={() => { close(); p.onResetLayout(); }} />
+          <MenuItem
+            label={`Layout: ${p.prefs.layout === "vertical" ? "vertical" : "horizontal"}`}
+            onClick={() => p.onPrefsChange({ layout: p.prefs.layout === "vertical" ? "horizontal" : "vertical" })}
+          />
           <MenuItem label={`${check(p.prefs.hideMissing)}  Hide not-generated`} onClick={() => p.onPrefsChange({ hideMissing: !p.prefs.hideMissing })} />
           <MenuItem label={`${check(p.prefs.edgeColor === "section")}  Color edges by section`} onClick={() => p.onPrefsChange({ edgeColor: p.prefs.edgeColor === "section" ? "neutral" : "section" })} />
           <MenuItem label={`${check(p.prefs.showDeps)}  Show dependency edges`} onClick={() => p.onPrefsChange({ showDeps: !p.prefs.showDeps })} />

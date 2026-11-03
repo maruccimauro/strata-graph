@@ -246,6 +246,13 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     [patch],
   );
 
+  // Re-fit the viewport when the band orientation changes so the relaid-out
+  // graph is framed, not left off-screen.
+  useEffect(() => {
+    const t = setTimeout(() => rf.fitView({ padding: 0.1, duration: 300 }), 60);
+    return () => clearTimeout(t);
+  }, [prefs.layout, rf]);
+
   const toggleTheme = useCallback(() => {
     const next = isDark() ? "light" : "dark";
     document.documentElement.dataset.theme = next;

@@ -9,12 +9,15 @@ export interface Prefs {
   edgeColor: "section" | "neutral";
   /** show dependency edges / dependent edges (quick view toggles). */
   showDeps: boolean;
+  /** band orientation: horizontal rows or vertical columns. */
+  layout: "horizontal" | "vertical";
 }
 
 export const DEFAULT_PREFS: Prefs = {
   hideMissing: false,
   edgeColor: "section",
   showDeps: true,
+  layout: "horizontal",
 };
 
 export interface ViewerState {

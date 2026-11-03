@@ -20,7 +20,7 @@ import "@xyflow/react/dist/style.css";
 
 import type { GraphModel, GraphNode } from "../core/types";
 import type { Prefs } from "./api";
-import { applyDefaultLayout, computeBands, GEO } from "../core/layout";
+import { applyDefaultLayout, computeBands } from "../core/layout";
 import { BandNode } from "./nodes/BandNode";
 import { SectionNode } from "./nodes/SectionNode";
 import { DocNode, type Highlight } from "./nodes/DocNode";
@@ -120,12 +120,19 @@ export function StrataCanvas(props: StrataCanvasProps) {
     hoverTimer.current = setTimeout(() => onActivateEdge(edge.id, edge.source, edge.target, clientX, clientY), 400);
   };
 
-  // section central node moves horizontally only (locked Y)
+  // Section central node moves along one axis only: horizontal layout locks Y
+  // (slides left-right), vertical layout locks X (slides up-down).
+  const vertical = prefs.layout === "vertical";
   const handleNodesChange = (changes: NodeChange[]) => {
     const fixed = changes.map((ch) => {
       if (ch.type === "position" && ch.position && ch.id.startsWith("section:")) {
         const cur = nodes.find((n) => n.id === ch.id);
-        if (cur) return { ...ch, position: { x: ch.position.x, y: cur.position.y } };
+        if (cur) {
+          const locked = vertical
+            ? { x: cur.position.x, y: ch.position.y }
+            : { x: ch.position.x, y: cur.position.y };
+          return { ...ch, position: locked };
+        }
       }
       return ch;
     });
@@ -201,9 +208,10 @@ function reach(map: Map<string, string[]>, start: string): Set<string> {
 }
 
 function build(model: GraphModel, prefs: Prefs, selected: string | null): { rfNodes: Node[]; rfEdges: Edge[] } {
-  const laid = applyDefaultLayout(model);
+  const orientation = prefs.layout ?? "horizontal";
+  const laid = applyDefaultLayout(model, orientation);
   const sectionHue = new Map(laid.sections.map((s) => [s.id, s.hue]));
-  const bands = computeBands(laid);
+  const bands = computeBands(laid, orientation);
   const byId = new Map(laid.nodes.map((n) => [n.id, n]));
 
   // adjacency over dependency + branch edges (for highlight)
@@ -253,13 +261,13 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null): { rfNo
     rfNodes.push({
       id: `band:${b.section.id}`,
       type: "band",
-      position: { x: 0, y: b.top },
+      position: { x: b.x, y: b.y },
       data: { label: b.section.label, hue: b.section.hue },
       draggable: false,
       selectable: false,
       connectable: false,
       zIndex: -1,
-      style: { width: GEO.CANVAS_W, height: b.height },
+      style: { width: b.width, height: b.height },
     });
   }
   for (const n of laid.nodes) {

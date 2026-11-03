@@ -118,7 +118,7 @@ export function PreferencesPanel({
         </nav>
 
         <div style={{ flex: 1, padding: "12px 16px", minWidth: 0, maxHeight: "min(70vh, 520px)", overflowY: "auto" }}>
-          {cat === "general" && <GeneralPane />}
+          {cat === "general" && <GeneralPane prefs={prefs} onChange={onChange} />}
           {cat === "interface" && <InterfacePane prefs={prefs} onChange={onChange} />}
           {cat === "sections" && (
             <SectionsPane
@@ -154,16 +154,50 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function GeneralPane() {
+function GeneralPane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partial<Prefs>) => void }) {
+  const layout = prefs.layout ?? "horizontal";
   return (
-    <Group title="Navigation">
-      <ul style={{ margin: 0, paddingLeft: 16, fontSize: ".8rem", color: MUTED, lineHeight: 1.7 }}>
-        <li>Middle-click (wheel) drag anywhere to pan the canvas.</li>
-        <li>Drag on empty space to box-select nodes.</li>
-        <li>Drag from a node's edge to another node to connect them.</li>
-        <li>Esc or click outside to dismiss an overlay or selection.</li>
-      </ul>
-    </Group>
+    <>
+      <Group title="Canvas layout">
+        <div style={{ display: "flex", gap: 6 }}>
+          <Segmented label="Horizontal" active={layout === "horizontal"} onClick={() => onChange({ layout: "horizontal" })} />
+          <Segmented label="Vertical" active={layout === "vertical"} onClick={() => onChange({ layout: "vertical" })} />
+        </div>
+        <p style={{ margin: "6px 0 0", fontSize: ".76rem", color: MUTED, lineHeight: 1.5 }}>
+          Horizontal stacks sections as rows; vertical stacks them as columns.
+        </p>
+      </Group>
+      <Group title="Navigation">
+        <ul style={{ margin: 0, paddingLeft: 16, fontSize: ".8rem", color: MUTED, lineHeight: 1.7 }}>
+          <li>Middle-click (wheel) drag anywhere to pan the canvas.</li>
+          <li>Drag on empty space to box-select nodes.</li>
+          <li>Drag from a node's edge to another node to connect them.</li>
+          <li>Esc or click outside to dismiss an overlay or selection.</li>
+        </ul>
+      </Group>
+    </>
+  );
+}
+
+function Segmented({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      style={{
+        font: "inherit",
+        fontSize: ".8rem",
+        cursor: "pointer",
+        padding: "5px 12px",
+        borderRadius: 8,
+        border: `1px solid ${active ? "var(--accent)" : "var(--line)"}`,
+        background: active ? "color-mix(in srgb, var(--accent) 16%, transparent)" : "transparent",
+        color: active ? "var(--accent)" : "var(--ink)",
+        fontWeight: active ? 600 : 400,
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
