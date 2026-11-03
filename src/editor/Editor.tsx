@@ -212,6 +212,44 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     [commit],
   );
 
+  /** Reconnect one end of an edge to a different node (drag a reconnect anchor).
+   *  A manual edge is replaced in place; an auto edge is removed and a manual
+   *  replacement with the new endpoints is created. Branch edges are not
+   *  reconnectable (blocked in the canvas). */
+  const onReconnectEdge = useCallback(
+    (edgeId: string, source: string, target: string) => {
+      if (edgeId.startsWith("branch:") || source === target) return;
+      const orig = model.edges.find((e) => e.id === edgeId);
+      const kind: GraphEdge["kind"] = orig?.kind ?? "dependency";
+      const newId = `manual:${source}->${target}:${kind}`;
+      const replacement: GraphEdge = {
+        id: newId,
+        source,
+        target,
+        kind,
+        origin: "manual",
+        ...(kind === "dependency" ? { via: "manual" as const } : {}),
+      };
+      commit((s) => {
+        const manualEdges = s.manualEdges ?? [];
+        const isManual = manualEdges.some((e) => e.id === edgeId);
+        // drop the old manual edge (if any) and any edge that already matches the
+        // new endpoints, then add the replacement.
+        const kept = manualEdges.filter((e) => e.id !== edgeId && e.id !== newId);
+        const nextManual = [...kept, replacement];
+        if (isManual) return { ...s, manualEdges: nextManual };
+        const removed = s.removedEdges ?? [];
+        return {
+          ...s,
+          manualEdges: nextManual,
+          removedEdges: removed.includes(edgeId) ? removed : [...removed, edgeId],
+        };
+      });
+      setSelectedEdge((cur) => (cur === edgeId ? null : cur));
+    },
+    [commit, model],
+  );
+
   const addEdge = useCallback(
     (edge: Omit<GraphEdge, "id">) => {
       const id = `manual:${edge.source}->${edge.target}:${edge.kind}`;
@@ -454,6 +492,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           onSelectionChange={setSelectedIds}
           selectedEdge={selectedEdge}
           onSelectEdge={setSelectedEdge}
+          onReconnectEdge={onReconnectEdge}
         />
       </div>
 

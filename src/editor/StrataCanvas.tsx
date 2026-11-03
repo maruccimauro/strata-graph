@@ -50,10 +50,11 @@ export interface StrataCanvasProps {
   onSelectionChange: (ids: string[]) => void;
   selectedEdge: string | null;
   onSelectEdge: (id: string | null) => void;
+  onReconnectEdge: (edgeId: string, source: string, target: string) => void;
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selectedEdge, onSelectEdge } = props;
+  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selectedEdge, onSelectEdge, onReconnectEdge } = props;
   const [selected, setSelected] = useState<string | null>(null);
   const lastPointer = useRef({ x: 0, y: 0 });
 
@@ -163,6 +164,14 @@ export function StrataCanvas(props: StrataCanvasProps) {
       onEdgeMouseEnter={onEdgeMouseEnter}
       onEdgeMouseLeave={clearHover}
       onEdgeClick={onEdgeClick}
+      onReconnectStart={() => {
+        clearHover();
+        onCloseOverlays();
+      }}
+      onReconnect={(oldEdge, conn) => {
+        if (!conn.source || !conn.target || conn.source === conn.target) return;
+        onReconnectEdge(oldEdge.id, conn.source, conn.target);
+      }}
       onPaneClick={() => {
         setSelected(null);
         onSelectEdge(null);
@@ -343,6 +352,7 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, selecte
         style: sel
           ? { stroke: "#caa83a", strokeWidth: 3, strokeDasharray: "2 3", opacity: 1 }
           : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
+        data: { kind: "comment" },
       });
       continue;
     }
@@ -372,7 +382,7 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, selecte
       source: e.source,
       target: e.target,
       style,
-      data: { originDot: true },
+      data: { originDot: true, kind: "dependency" },
       markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke as string },
     });
   }
@@ -386,6 +396,7 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, selecte
       type: "floating",
       source: `section:${n.sectionId}`,
       target: n.id,
+      reconnectable: false,
       style: { stroke: mutedCol(), strokeWidth: 1.2, opacity: dimmed(n.id) ? 0.05 : 0.22 },
     });
   }
