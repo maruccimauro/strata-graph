@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Panel, Button, Field, Combobox } from "./ui/primitives";
 import { MUTED } from "./theme";
 import type { GraphNode, Section } from "../core/types";
@@ -11,6 +11,7 @@ export interface NodeOverlayProps {
   onClose: () => void;
   onOpen: (path: string, kind: "file" | "folder") => void;
   onSetSection: (id: string, sectionId: string) => void;
+  onSetNodeMeta: (id: string, meta: { createdAt?: number; dueAt?: number; locked?: boolean }) => void;
   onAddComment: (nodeId: string) => void;
   onConnectPanel: (node: GraphNode) => void;
   onDelete: (id: string) => void;
@@ -53,16 +54,96 @@ function Flag({ text, tone }: { text: string; tone: "auto" | "manual" | "gen" | 
   );
 }
 
-export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, onSetSection, onAddComment, onConnectPanel, onDelete }: NodeOverlayProps) {
+/** Icon-only action for the overlay action bar (tooltip carries the label/shortcut). */
+function IconAction({ icon, title, onClick, danger }: { icon: string; title: string; onClick: () => void; danger?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        border: "1px solid var(--line)",
+        background: "var(--panel)",
+        color: danger ? "var(--ghost)" : "var(--ink)",
+        borderRadius: 7,
+        width: 30,
+        height: 28,
+        cursor: "pointer",
+        fontSize: ".9rem",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {icon}
+    </button>
+  );
+}
+
+/** epoch ms -> value for <input type="datetime-local"> in the viewer's local time. */
+function toLocalInput(ms?: number): string {
+  if (!ms) return "";
+  return new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+function fromLocalInput(v: string): number | undefined {
+  if (!v) return undefined;
+  const ms = new Date(v).getTime();
+  return Number.isNaN(ms) ? undefined : ms;
+}
+
+function formatCountdown(ms: number): string {
+  const neg = ms < 0;
+  let s = Math.floor(Math.abs(ms) / 1000);
+  const y = Math.floor(s / (365 * 86400)); s -= y * 365 * 86400;
+  const mo = Math.floor(s / (30 * 86400)); s -= mo * 30 * 86400;
+  const d = Math.floor(s / 86400); s -= d * 86400;
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60); s -= m * 60;
+  const parts: string[] = [];
+  if (y) parts.push(`${y}y`);
+  if (y || mo) parts.push(`${mo}mo`);
+  if (y || mo || d) parts.push(`${d}d`);
+  parts.push(`${h}h`, `${m}m`, `${s}s`);
+  return (neg ? "-" : "") + parts.join(" ");
+}
+
+/** Live countdown to the due date; red and negative once overdue. */
+function Countdown({ dueAt }: { dueAt: number }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const left = dueAt - Date.now();
+  const overdue = left < 0;
+  return (
+    <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, color: overdue ? "var(--ghost)" : "var(--ink)" }}>
+      {formatCountdown(left)}{overdue ? " overdue" : " left"}
+    </span>
+  );
+}
+
+export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, onSetSection, onSetNodeMeta, onAddComment, onConnectPanel, onDelete }: NodeOverlayProps) {
   const isSection = node.kind === "section";
   const isComment = node.kind === "comment";
   const x = Math.min(at.x + 12, window.innerWidth - 330);
-  const y = Math.min(at.y + 12, window.innerHeight - 240);
+  const y = Math.min(at.y + 12, window.innerHeight - 300);
   const ref = useRef<HTMLDivElement>(null);
   useHoverDismiss(ref, onClose);
 
   return (
     <Panel title={node.label} onClose={onClose} style={{ left: x, top: y }} innerRef={ref}>
+      {/* action bar — icon buttons, below the title, above the flags row */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid var(--line)" }}>
+        <IconAction
+          icon={node.locked ? "🔒" : "🔓"}
+          title={node.locked ? "Unlock node (allow moving)" : "Lock node (prevent moving)"}
+          onClick={() => onSetNodeMeta(node.id, { locked: !node.locked })}
+        />
+        {!isSection && <IconAction icon="🔗" title="Connect to another node" onClick={() => onConnectPanel(node)} />}
+        {!isSection && <IconAction icon="🏷️" title="Add a comment" onClick={() => onAddComment(node.id)} />}
+        {node.origin === "manual" && <IconAction icon="🗑" title="Delete node" danger onClick={() => onDelete(node.id)} />}
+      </div>
+
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         {isComment ? (
           <Flag text="🏷️ Comment" tone="comment" />
@@ -73,6 +154,7 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
               (node.status === "missing" ? <Flag text="Not generated" tone="miss" /> : <Flag text="Generated" tone="gen" />)}
           </>
         )}
+        {node.locked && <Flag text="🔒 Locked" tone="manual" />}
       </div>
 
       {isComment && node.note && <div style={{ fontSize: ".82rem", marginBottom: 8 }}>{node.note}</div>}
@@ -113,16 +195,34 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
         </Field>
       )}
 
-      {/* actions */}
-      {!isSection && (
-        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-          <Button onClick={() => onConnectPanel(node)}>🔗 Connect…</Button>
-          <Button onClick={() => onAddComment(node.id)}>🏷️ Comment</Button>
-          {node.origin === "manual" && (
-            <Button variant="ghost" style={{ color: "var(--ghost)" }} onClick={() => onDelete(node.id)}>
-              🗑 Delete
-            </Button>
+      {/* dates: creation (read-only) + due date with a live countdown */}
+      <Field label="Due date">
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <input
+            type="datetime-local"
+            value={toLocalInput(node.dueAt)}
+            onChange={(e) => onSetNodeMeta(node.id, { dueAt: fromLocalInput(e.target.value) })}
+            style={{ font: "inherit", fontSize: ".78rem", padding: "3px 6px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--panel)", color: "var(--ink)" }}
+          />
+          {node.dueAt && (
+            <button
+              onClick={() => onSetNodeMeta(node.id, { dueAt: undefined })}
+              title="Clear due date"
+              style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: ".9rem" }}
+            >
+              ✕
+            </button>
           )}
+        </div>
+      </Field>
+      {node.dueAt && (
+        <div style={{ fontSize: ".78rem", margin: "2px 0 6px", textAlign: "right" }}>
+          <Countdown dueAt={node.dueAt} />
+        </div>
+      )}
+      {node.createdAt && (
+        <div style={{ fontSize: ".72rem", color: MUTED, marginTop: 4 }}>
+          Created {new Date(node.createdAt).toLocaleString()}
         </div>
       )}
     </Panel>

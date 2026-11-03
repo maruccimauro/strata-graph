@@ -124,7 +124,7 @@ export function Editor({ boot }: { boot: Boot }) {
       const pos = flowPos ?? rf.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
       commit((s) => ({
         ...s,
-        manualNodes: [...(s.manualNodes ?? []), { ...node, id }],
+        manualNodes: [...(s.manualNodes ?? []), { ...node, id, createdAt: node.createdAt ?? Date.now() }],
         pos: { ...(s.pos ?? {}), [id]: pos },
       }));
     },
@@ -166,6 +166,15 @@ export function Editor({ boot }: { boot: Boot }) {
     [commit],
   );
 
+  const onSetNodeMeta = useCallback(
+    (id: string, m: { createdAt?: number; dueAt?: number; locked?: boolean }) =>
+      commit((s) => {
+        const cur = (s.nodeMeta ?? {})[id] ?? {};
+        return { ...s, nodeMeta: { ...(s.nodeMeta ?? {}), [id]: { ...cur, ...m } } };
+      }),
+    [commit],
+  );
+
   const onDeleteEdge = useCallback(
     (id: string) => {
       if (id.startsWith("branch:")) return;
@@ -199,7 +208,7 @@ export function Editor({ boot }: { boot: Boot }) {
       const id = `manual:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 6)}`;
       commit((s) => ({
         ...s,
-        manualNodes: [...(s.manualNodes ?? []), { id, label: title, note, kind: "comment", origin: "manual", status: "generated" }],
+        manualNodes: [...(s.manualNodes ?? []), { id, label: title, note, kind: "comment", origin: "manual", status: "generated", createdAt: Date.now() }],
         manualEdges: [...(s.manualEdges ?? []), { id: `cmt:${id}`, source: id, target: nodeId, kind: "comment", origin: "manual" }],
         pos: { ...(s.pos ?? {}), [id]: { x: anchor.x + 190, y: anchor.y - 50 } },
       }));
@@ -358,13 +367,14 @@ export function Editor({ boot }: { boot: Boot }) {
 
       {overlay && (
         <NodeOverlay
-          node={overlay.node}
+          node={model.nodes.find((n) => n.id === overlay.node.id) ?? overlay.node}
           at={{ x: overlay.x, y: overlay.y }}
           sections={model.sections}
           connected={connected}
           onClose={() => setOverlay(null)}
           onOpen={openPath}
           onSetSection={onSetSection}
+          onSetNodeMeta={onSetNodeMeta}
           onAddComment={onAddComment}
           onConnectPanel={(node) => {
             setOverlay(null);
