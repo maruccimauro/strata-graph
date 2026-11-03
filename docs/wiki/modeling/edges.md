@@ -8,7 +8,7 @@ Edges are dependencies between nodes. The source is the prerequisite; the target
 
 ## Direction
 
-An edge runs from the **source** (upstream, the prerequisite) to the **target** (downstream, the thing that depends on it). The arrow points at the target.
+An edge runs from the **source** (upstream, the prerequisite) to the **target** (downstream, the thing that depends on it). A small dot marks the source end and the arrow points at the target, so the direction reads at a glance from either end.
 
 ## Create an edge
 
