@@ -6,7 +6,8 @@ import { StrataCanvas } from "./StrataCanvas";
 import { NodeOverlay } from "./NodeOverlay";
 import { ConnectPanel, type Direction } from "./ConnectPanel";
 import { TopBar } from "./ui/TopBar";
-import { Panel, Button, Field } from "./ui/primitives";
+import { Panel, Button } from "./ui/primitives";
+import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { buildRenderModel } from "./model";
 import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs } from "./api";
 import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
@@ -486,20 +487,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
       )}
 
       {prefsOpen && (
-        <Panel title="Preferences" onClose={() => setPrefsOpen(false)} style={{ left: "50%", top: 90, transform: "translateX(-50%)" }}>
-          <Field label="Hide not-generated">
-            <input type="checkbox" checked={prefs.hideMissing} onChange={(e) => setPrefs({ hideMissing: e.target.checked })} />
-          </Field>
-          <Field label="Color edges by section">
-            <input type="checkbox" checked={prefs.edgeColor === "section"} onChange={(e) => setPrefs({ edgeColor: e.target.checked ? "section" : "neutral" })} />
-          </Field>
-          <Field label="Show dependency edges">
-            <input type="checkbox" checked={prefs.showDeps} onChange={(e) => setPrefs({ showDeps: e.target.checked })} />
-          </Field>
-          <div style={{ fontSize: ".74rem", color: MUTED, marginTop: 8 }}>
-            Right-drag to pan · drag on empty space to box-select · drag a node's edge to another to connect.
-          </div>
-        </Panel>
+        <PreferencesPanel prefs={prefs} onChange={setPrefs} onClose={() => setPrefsOpen(false)} />
       )}
 
       {pending && (

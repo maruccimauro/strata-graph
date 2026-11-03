@@ -1,0 +1,170 @@
+import { useState, type ReactNode } from "react";
+import { MUTED } from "../theme";
+import { Field } from "./primitives";
+import type { Prefs } from "../api";
+
+/** Preference categories. Only categories with real settings are listed: no
+ *  empty placeholder tabs. Add a new entry here as a category gains content. */
+type Category = "general" | "interface";
+
+const CATEGORIES: { id: Category; label: string; icon: string }[] = [
+  { id: "general", label: "General", icon: "⚙" },
+  { id: "interface", label: "Interface", icon: "◧" },
+];
+
+/** Preferences as a two-pane panel: category list on the left, settings on the
+ *  right. Self-contained so the editor only wires `prefs` and `onChange`. */
+export function PreferencesPanel({
+  prefs,
+  onChange,
+  onClose,
+}: {
+  prefs: Prefs;
+  onChange: (p: Partial<Prefs>) => void;
+  onClose: () => void;
+}) {
+  const [cat, setCat] = useState<Category>("general");
+
+  return (
+    <div
+      role="dialog"
+      aria-label="Preferences"
+      onPointerDown={(e) => e.stopPropagation()}
+      style={{
+        position: "fixed",
+        left: "50%",
+        top: 80,
+        transform: "translateX(-50%)",
+        width: 520,
+        maxWidth: "calc(100vw - 32px)",
+        background: "var(--panel)",
+        color: "var(--ink)",
+        border: "1px solid var(--line)",
+        borderRadius: 11,
+        boxShadow: "0 12px 34px rgba(0,0,0,.30)",
+        zIndex: 60,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          padding: "8px 11px",
+          borderBottom: "1px solid var(--line)",
+        }}
+      >
+        <strong style={{ fontSize: ".84rem" }}>Preferences</strong>
+        <button
+          onClick={onClose}
+          title="Close (Esc)"
+          style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: ".9rem" }}
+        >
+          ✕
+        </button>
+      </div>
+
+      <div style={{ display: "flex", minHeight: 240 }}>
+        <nav
+          style={{
+            width: 150,
+            flexShrink: 0,
+            borderRight: "1px solid var(--line)",
+            padding: 8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          {CATEGORIES.map((c) => {
+            const active = c.id === cat;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setCat(c.id)}
+                style={{
+                  font: "inherit",
+                  fontSize: ".82rem",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  border: "none",
+                  borderRadius: 7,
+                  padding: "7px 9px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  background: active ? "color-mix(in srgb, var(--accent) 16%, transparent)" : "transparent",
+                  color: active ? "var(--accent)" : "var(--ink)",
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
+                <span aria-hidden style={{ fontSize: ".9rem", opacity: 0.85 }}>{c.icon}</span>
+                {c.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div style={{ flex: 1, padding: "12px 16px", minWidth: 0 }}>
+          {cat === "general" && <GeneralPane />}
+          {cat === "interface" && <InterfacePane prefs={prefs} onChange={onChange} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section style={{ marginBottom: 14 }}>
+      <h4
+        style={{
+          margin: "0 0 4px",
+          fontSize: ".68rem",
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: ".06em",
+          color: MUTED,
+        }}
+      >
+        {title}
+      </h4>
+      {children}
+    </section>
+  );
+}
+
+function GeneralPane() {
+  return (
+    <Group title="Navigation">
+      <ul style={{ margin: 0, paddingLeft: 16, fontSize: ".8rem", color: MUTED, lineHeight: 1.7 }}>
+        <li>Middle-click (wheel) drag anywhere to pan the canvas.</li>
+        <li>Drag on empty space to box-select nodes.</li>
+        <li>Drag from a node's edge to another node to connect them.</li>
+        <li>Esc or click outside to dismiss an overlay or selection.</li>
+      </ul>
+    </Group>
+  );
+}
+
+function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partial<Prefs>) => void }) {
+  return (
+    <Group title="Display">
+      <Field label="Hide not-generated">
+        <input type="checkbox" checked={prefs.hideMissing} onChange={(e) => onChange({ hideMissing: e.target.checked })} />
+      </Field>
+      <Field label="Color edges by section">
+        <input
+          type="checkbox"
+          checked={prefs.edgeColor === "section"}
+          onChange={(e) => onChange({ edgeColor: e.target.checked ? "section" : "neutral" })}
+        />
+      </Field>
+      <Field label="Show dependency edges">
+        <input type="checkbox" checked={prefs.showDeps} onChange={(e) => onChange({ showDeps: e.target.checked })} />
+      </Field>
+    </Group>
+  );
+}
