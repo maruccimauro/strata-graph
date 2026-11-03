@@ -35,6 +35,8 @@ Captured requirements for the editor. Grouped by theme. Many canvas items come
 - [ ] i18n multi-language (English done; add a language switch + es dict).
 - [x] Subtle action bar on hover overlays (icon buttons: lock / connect / comment / delete, with tooltips).
 - [x] Per-node metadata: lock (prevent dragging), creation date, due date with a live countdown and urgency indicator.
+- [x] Multi-select shared action bar (lock / unlock the whole selection) and selection that survives canvas rebuilds.
+- [x] Hover overlay is suppressed over a node border so it does not block edge creation from the handles.
 - [ ] Direction icon at the edge origin; edge color already follows target section.
 - [ ] Advanced export: pick sections / include-or-exclude comments.
 
