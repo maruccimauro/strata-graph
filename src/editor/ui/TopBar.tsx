@@ -6,6 +6,7 @@ import type { Prefs, Mode } from "../api";
 export interface TopBarActions {
   onAddNode: () => void;
   onExportPng: () => void;
+  onExportSgm: () => void;
   onFit: () => void;
   onResetLayout: () => void;
   onToggleTheme: () => void;
@@ -113,6 +114,7 @@ export function TopBar(p: TopBarProps) {
         <strong style={{ fontSize: ".95rem", margin: "0 8px 0 4px" }}>Strata</strong>
         <Menu label="File" open={menu === "file"} onToggle={() => toggle("file")}>
           <MenuItem label="Add node…" shortcut="N" onClick={() => { close(); p.onAddNode(); }} />
+          <MenuItem label="Export model (.sgm)…" onClick={() => { close(); p.onExportSgm(); }} />
           <MenuItem label="Export PNG…" onClick={() => { close(); p.onExportPng(); }} />
         </Menu>
         <Menu label="Edit" open={menu === "edit"} onToggle={() => toggle("edit")}>

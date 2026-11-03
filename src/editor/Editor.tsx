@@ -10,6 +10,7 @@ import { Panel, Button, Field } from "./ui/primitives";
 import { buildRenderModel } from "./model";
 import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs } from "./api";
 import type { GraphNode, GraphEdge } from "../core/types";
+import { toSgm } from "../core/sgm";
 import { isDark, MUTED } from "./theme";
 
 const THEME_KEY = "strata-theme";
@@ -244,6 +245,16 @@ export function Editor({ boot }: { boot: Boot }) {
 
   const onFit = useCallback(() => rf.fitView({ duration: 300 }), [rf]);
 
+  const onExportSgm = useCallback(() => {
+    const blob = new Blob([toSgm(model)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${graph.meta.name}.sgm`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [model, graph.meta.name]);
+
   const onExportPng = useCallback(() => {
     const el = document.querySelector(".react-flow__viewport") as HTMLElement | null;
     if (!el) return;
@@ -330,6 +341,7 @@ export function Editor({ boot }: { boot: Boot }) {
         canRedo={redoStack.length > 0}
         onAddNode={() => void onAddNode()}
         onExportPng={onExportPng}
+        onExportSgm={onExportSgm}
         onFit={onFit}
         onResetLayout={onResetLayout}
         onToggleTheme={toggleTheme}
