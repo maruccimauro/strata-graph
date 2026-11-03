@@ -6,6 +6,7 @@ export interface CommentData {
   label: string; // title
   note?: string; // description
   ref?: string; // optional file/url reference
+  locked?: boolean;
   [key: string]: unknown;
 }
 
@@ -28,7 +29,8 @@ function CommentNodeImpl({ data, selected }: NodeProps) {
     >
       <div style={{ fontWeight: 700, display: "flex", gap: 5, alignItems: "baseline" }}>
         <span>🏷️</span>
-        <span style={{ color: INK, filter: "none" }}>{d.label}</span>
+        <span style={{ color: INK, filter: "none", flex: 1 }}>{d.label}</span>
+        {d.locked && <span title="Locked (cannot move)" style={{ fontSize: 10 }}>🔒</span>}
       </div>
       {d.note && <div style={{ marginTop: 3, color: "#6a5c22" }}>{d.note}</div>}
       {d.ref && (

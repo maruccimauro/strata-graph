@@ -242,7 +242,8 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null): { rfNo
         id: n.id,
         type: "section",
         position: n.position!,
-        data: { label: n.label, hue, autoCount: a.gen, autoTotal: a.total, manualCount: manual.get(n.sectionId!) ?? 0 },
+        data: { label: n.label, hue, autoCount: a.gen, autoTotal: a.total, manualCount: manual.get(n.sectionId!) ?? 0, locked: n.locked },
+        draggable: !n.locked,
         zIndex: 1,
         style: dim,
       });
@@ -251,7 +252,8 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null): { rfNo
         id: n.id,
         type: "comment",
         position: n.position!,
-        data: { label: n.label, note: n.note, ref: n.files?.[0]?.path },
+        data: { label: n.label, note: n.note, ref: n.files?.[0]?.path, locked: n.locked, dueAt: n.dueAt },
+        draggable: !n.locked,
         zIndex: 2,
         style: dim,
       });
@@ -260,7 +262,8 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null): { rfNo
         id: n.id,
         type: "doc",
         position: n.position!,
-        data: { label: n.label, hue, status: n.status, origin: n.origin, hl: hlOf(n.id) },
+        data: { label: n.label, hue, status: n.status, origin: n.origin, hl: hlOf(n.id), locked: n.locked, dueAt: n.dueAt },
+        draggable: !n.locked,
         zIndex: 1,
         style: dim,
       });

@@ -12,6 +12,8 @@ export interface DocData {
   status: NodeStatus;
   origin: Origin;
   hl?: Highlight;
+  locked?: boolean;
+  dueAt?: number;
   [key: string]: unknown;
 }
 
@@ -19,6 +21,14 @@ function subLabel(status: NodeStatus, origin: Origin): string {
   if (status === "missing") return "NOT GENERATED";
   if (status === "unavailable") return "UNAVAILABLE";
   return origin === "manual" ? "MANUAL" : "GENERATED";
+}
+
+/** Due-date urgency color: overdue (red), within 24h (amber), otherwise muted. */
+export function dueColor(dueAt: number): string {
+  const left = dueAt - Date.now();
+  if (left < 0) return GHOST;
+  if (left < 24 * 3600 * 1000) return "#d98324";
+  return MUTED;
 }
 
 /** A document node: generated / not-generated (red dashed) / unavailable (crossed). */
@@ -59,6 +69,14 @@ function DocNodeImpl({ data, selected }: NodeProps) {
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.03em", color: missing ? GHOST : MUTED, marginTop: 4 }}>
         {subLabel(d.status, d.origin)}
       </div>
+      {(d.locked || d.dueAt) && (
+        <div style={{ position: "absolute", top: 4, right: 6, display: "flex", alignItems: "center", gap: 3, fontSize: 9 }}>
+          {d.dueAt && (
+            <span title="Due date" style={{ width: 7, height: 7, borderRadius: "50%", background: dueColor(d.dueAt), display: "inline-block" }} />
+          )}
+          {d.locked && <span title="Locked (cannot move)">🔒</span>}
+        </div>
+      )}
       {/* multi-side connection points (loose mode lets any act as source or target) */}
       <Handle id="t" type="source" position={Position.Top} />
       <Handle id="r" type="source" position={Position.Right} />
