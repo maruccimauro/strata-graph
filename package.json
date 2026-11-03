@@ -2,7 +2,7 @@
   "name": "strata-graph",
   "version": "0.1.0",
   "private": true,
-  "description": "Strata — template-driven, sectioned dependency-graph editor. SDLC is the first template.",
+  "description": "Visual editor for building, organizing and tracking dependency graphs, grouped into configurable sections and adaptable to any domain.",
   "type": "module",
   "scripts": {
     "dev": "vite",

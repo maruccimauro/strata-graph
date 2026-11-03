@@ -1,15 +1,18 @@
 # Strata
 
-A template-driven, **sectioned dependency-graph editor**. You define *sections*
-(horizontal bands), *node types* and *dependency rules* in a **template**, point
-it at a data source, and Strata renders an editable graph: a central node per
-section, documents branching off, dependency edges, and "not generated"
-placeholders for expected-but-missing nodes.
+A **visual editor for dependency graphs**, grouped into configurable
+**sections** and adaptable to any domain. You define the sections, node types
+and dependency rules for your domain, point Strata at a data source, and it
+renders an editable graph: a central node per section, nodes branching off,
+dependency edges, and "not generated" placeholders for expected-but-missing
+nodes.
 
-The **SDLC** template (the lifecycle of a software project, from the
-[`sdlc-starter-kit`](https://github.com/maruccimauro/sdlc-starter-kit)) is the
-first template — but the engine is domain-agnostic and works for any staged
-dependency graph (course prerequisites, content pipelines, approval flows…).
+The engine is **domain-agnostic**: it works for course prerequisites, content
+pipelines, approval flows or any staged dependency graph. Domains plug in
+through self-contained definitions; the bundled **SDLC** definition (software
+project lifecycle, from the
+[`sdlc-starter-kit`](https://github.com/maruccimauro/sdlc-starter-kit)) ships as
+one worked example, not as the product's purpose.
 
 ## Architecture
 
