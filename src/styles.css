@@ -61,6 +61,17 @@ body {
 .react-flow__node:hover .react-flow__handle {
   opacity: 0.85;
 }
+/* hovering a document/comment node highlights its border as the active
+   connect/manage zone (pairs with the connection points revealed above) */
+.react-flow__node-doc,
+.react-flow__node-comment {
+  border-radius: 9px;
+  transition: box-shadow 0.12s;
+}
+.react-flow__node-doc:hover,
+.react-flow__node-comment:hover {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}
 /* right-drag pans: show a grabbing cursor while panning */
 .react-flow__pane.dragging {
   cursor: grabbing;
