@@ -48,17 +48,19 @@ export interface StrataCanvasProps {
   onPaneClick: () => void;
   onCloseOverlays: () => void;
   onSelectionChange: (ids: string[]) => void;
+  selectedEdge: string | null;
+  onSelectEdge: (id: string | null) => void;
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange } = props;
+  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selectedEdge, onSelectEdge } = props;
   const [selected, setSelected] = useState<string | null>(null);
   const lastPointer = useRef({ x: 0, y: 0 });
 
   const nodeIndex = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model]);
   const { rfNodes, rfEdges } = useMemo(
-    () => build(model, prefs, selected),
-    [model, prefs, selected, themeKey],
+    () => build(model, prefs, selected, selectedEdge),
+    [model, prefs, selected, selectedEdge, themeKey],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes);
@@ -119,6 +121,13 @@ export function StrataCanvas(props: StrataCanvasProps) {
     clearHover();
     hoverTimer.current = setTimeout(() => onActivateEdge(edge.id, edge.source, edge.target, clientX, clientY), 400);
   };
+  // Click a dependency/comment edge to select it; pressing Delete then removes
+  // it (handled in Editor). Auto branch edges are not selectable (not deletable).
+  const onEdgeClick: EdgeMouseHandler = (e, edge) => {
+    e.stopPropagation();
+    if (edge.id.startsWith("branch:")) return;
+    onSelectEdge(selectedEdge === edge.id ? null : edge.id);
+  };
 
   // Section central node moves along one axis only: horizontal layout locks Y
   // (slides left-right), vertical layout locks X (slides up-down).
@@ -153,8 +162,10 @@ export function StrataCanvas(props: StrataCanvasProps) {
       onSelectionChange={({ nodes: sel }) => onSelectionChange(sel.filter((n) => n.type !== "band").map((n) => n.id))}
       onEdgeMouseEnter={onEdgeMouseEnter}
       onEdgeMouseLeave={clearHover}
+      onEdgeClick={onEdgeClick}
       onPaneClick={() => {
         setSelected(null);
+        onSelectEdge(null);
         onPaneClick();
       }}
       onMoveStart={() => onCloseOverlays()}
@@ -207,7 +218,7 @@ function reach(map: Map<string, string[]>, start: string): Set<string> {
   return out;
 }
 
-function build(model: GraphModel, prefs: Prefs, selected: string | null): { rfNodes: Node[]; rfEdges: Edge[] } {
+function build(model: GraphModel, prefs: Prefs, selected: string | null, selectedEdge: string | null): { rfNodes: Node[]; rfEdges: Edge[] } {
   const orientation = prefs.layout ?? "horizontal";
   const laid = applyDefaultLayout(model, orientation);
   const sectionHue = new Map(laid.sections.map((s) => [s.id, s.hue]));
@@ -323,12 +334,15 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null): { rfNo
 
   for (const e of laid.edges) {
     if (e.kind === "comment") {
+      const sel = e.id === selectedEdge;
       rfEdges.push({
         id: e.id,
         type: "floating",
         source: e.source,
         target: e.target,
-        style: { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
+        style: sel
+          ? { stroke: "#caa83a", strokeWidth: 3, strokeDasharray: "2 3", opacity: 1 }
+          : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
       });
       continue;
     }
@@ -339,7 +353,7 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null): { rfNo
     const hue = tgt?.sectionId ? (sectionHue.get(tgt.sectionId) ?? 210) : 210;
     const baseColor = ghost ? ghostCol() : prefs.edgeColor === "neutral" ? mutedCol() : accent(hue);
     const hl = edgeHL(e);
-    const style =
+    const base =
       hl === "up"
         ? { stroke: upCol(), strokeWidth: 2.6, opacity: 1 }
         : hl === "down"
@@ -350,6 +364,8 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null): { rfNo
               strokeDasharray: ghost ? "5 4" : undefined,
               opacity: selected ? 0.07 : ghost ? 0.5 : 0.55,
             };
+    // A selected edge is drawn bold and solid so it reads as the delete target.
+    const style = e.id === selectedEdge ? { ...base, strokeWidth: 3.4, opacity: 1, strokeDasharray: undefined } : base;
     rfEdges.push({
       id: e.id,
       type: "floating",

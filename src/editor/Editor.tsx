@@ -16,6 +16,15 @@ import { isDark, MUTED } from "./theme";
 
 const THEME_KEY = "strata-theme";
 
+/** True when the keyboard event targets a text field, so global shortcuts like
+ *  Delete do not fire while the user is typing in an input/textarea/combobox. */
+function isEditableTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable === true;
+}
+
 export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model: GraphModel) => void }) {
   const graph = boot.graph;
   const connected = boot.mode === "connected";
@@ -34,6 +43,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   const [pending, setPending] = useState<{ a: string; b: string } | null>(null);
   const [connectFrom, setConnectFrom] = useState<GraphNode | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
 
   const prefs = state.prefs ?? DEFAULT_PREFS;
   const model = useMemo(() => buildRenderModel(graph, state), [graph, state]);
@@ -197,6 +207,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           : { ...s, removedEdges: [...(s.removedEdges ?? []), id] },
       );
       setEdgeOverlay(null);
+      setSelectedEdge((cur) => (cur === id ? null : cur));
     },
     [commit],
   );
@@ -359,13 +370,24 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
         setPrefsOpen(false);
         setPending(null);
         setConnectFrom(null);
+        setSelectedEdge(null);
+      } else if ((e.key === "Delete" || e.key === "Backspace") && isEditableTarget(e.target) === false) {
+        // Delete the selected dependency/comment edge (auto branch edges are
+        // never selectable, so this cannot remove a section branch).
+        setSelectedEdge((cur) => {
+          if (cur) {
+            e.preventDefault();
+            onDeleteEdge(cur);
+          }
+          return null;
+        });
       } else if (e.key.toLowerCase() === "n" && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== "INPUT") {
         void onAddNode();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, onAddNode]);
+  }, [undo, redo, onAddNode, onDeleteEdge]);
 
   const genDocs = model.nodes.filter((n) => n.kind === "doc" && n.status === "generated").length;
   const totalDocs = model.nodes.filter((n) => n.kind === "doc").length;
@@ -423,12 +445,15 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           onPaneClick={() => {
             setOverlay(null);
             setEdgeOverlay(null);
+            setSelectedEdge(null);
           }}
           onCloseOverlays={() => {
             setOverlay(null);
             setEdgeOverlay(null);
           }}
           onSelectionChange={setSelectedIds}
+          selectedEdge={selectedEdge}
+          onSelectEdge={setSelectedEdge}
         />
       </div>
 
