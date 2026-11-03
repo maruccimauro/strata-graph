@@ -77,10 +77,15 @@ function DocNodeImpl({ data, selected }: NodeProps) {
           {d.locked && <span title="Locked (cannot move)">🔒</span>}
         </div>
       )}
-      {/* multi-side connection points (loose mode lets any act as source or target) */}
+      {/* 8 connection points: side centers + corners. Loose mode lets any act
+          as source or target; FloatingEdge still draws to the border. */}
+      <Handle id="tl" type="source" position={Position.Top} style={{ left: "0%" }} />
       <Handle id="t" type="source" position={Position.Top} />
+      <Handle id="tr" type="source" position={Position.Top} style={{ left: "100%" }} />
       <Handle id="r" type="source" position={Position.Right} />
+      <Handle id="br" type="source" position={Position.Bottom} style={{ left: "100%" }} />
       <Handle id="b" type="source" position={Position.Bottom} />
+      <Handle id="bl" type="source" position={Position.Bottom} style={{ left: "0%" }} />
       <Handle id="l" type="source" position={Position.Left} />
     </div>
   );
