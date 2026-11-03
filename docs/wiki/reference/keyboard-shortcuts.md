@@ -7,6 +7,7 @@ title: Keyboard shortcuts
 | Shortcut | Action |
 |---|---|
 | <kbd>N</kbd> | Add node |
+| <kbd>Delete</kbd> / <kbd>Backspace</kbd> | Delete the selected edge |
 | <kbd>Ctrl</kbd>+<kbd>Z</kbd> | Undo |
 | <kbd>Ctrl</kbd>+<kbd>Y</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> | Redo |
 | <kbd>Esc</kbd> | Close overlays, dialogs and selection |

@@ -27,7 +27,13 @@ There are two ways:
 
 A node with no incoming dependency is linked to its section's central node by a thin **branch** edge. Branch edges are structural and cannot be deleted.
 
-## Inspect and delete
+## Select, delete and reconnect
+
+- **Select**: click an edge to select it. The selected edge lights up with a soft glow and shows a small grab handle at each end. Click it again, press `Escape`, or click an empty area to deselect.
+- **Delete**: with an edge selected, press `Delete` or `Backspace` to remove it. Deletes are undoable with `Ctrl+Z`. Branch edges cannot be deleted. You can also delete from the edge overlay's trash action.
+- **Reconnect (retarget)**: drag the grab handle at either end onto another node to move that end of the edge. The dependency rebinds to the new node; if the edge came from the built-in model it becomes a manual edge, so the change persists. Retargeting the only incoming dependency away from a node turns that node into a section root, so it reattaches to its section's central node with a branch edge.
+
+## Inspect
 
 Hover an edge to open the **edge overlay**: it names the depends-on and dependent nodes with their sections, and offers a delete action for non-branch edges. See [Overlays and actions](/working/overlays-and-actions).
 
