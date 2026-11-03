@@ -30,6 +30,7 @@ The canvas is where the graph lives:
 - **Zoom**: the mouse wheel, or the controls at the bottom left.
 - **Box-select**: drag on empty space to select several nodes.
 - **Minimap**: bottom right, pannable and zoomable.
+- **Layout**: switch between horizontal rows and vertical columns from **View ▸ Layout** or **Preferences ▸ General**.
 
 ## Overlays
 
