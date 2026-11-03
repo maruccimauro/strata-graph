@@ -27,6 +27,9 @@ export interface ViewerState {
   removedEdges?: string[];
   /** per-node section reassignments. */
   sectionOverrides?: Record<string, string>;
+  /** per-node metadata overrides (due date, lock, creation date) applied over
+   *  the base graph, so they work for auto nodes too, not only manual ones. */
+  nodeMeta?: Record<string, { createdAt?: number; dueAt?: number; locked?: boolean }>;
   /** canon doc ids ever seen generated (to detect "unavailable" later). */
   seenGenerated?: string[];
   prefs?: Prefs;

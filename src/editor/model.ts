@@ -7,8 +7,20 @@ import type { ViewerState } from "./api";
 export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphModel {
   const pos = state.pos ?? {};
   const overrides = state.sectionOverrides ?? {};
+  const meta = state.nodeMeta ?? {};
   const hideMissing = state.prefs?.hideMissing ?? false;
   const seen = new Set(state.seenGenerated ?? []);
+
+  const withMeta = (n: GraphNode): GraphNode => {
+    const m = meta[n.id];
+    if (!m) return n;
+    return {
+      ...n,
+      createdAt: m.createdAt ?? n.createdAt,
+      dueAt: m.dueAt ?? n.dueAt,
+      locked: m.locked ?? n.locked,
+    };
+  };
 
   let nodes: GraphNode[] = graph.nodes.map((n) => {
     // a canon doc that was generated before but is now missing -> "unavailable"
@@ -16,15 +28,15 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
       n.kind === "doc" && n.origin === "auto" && n.status === "missing" && seen.has(n.id)
         ? "unavailable"
         : n.status;
-    return {
+    return withMeta({
       ...n,
       status,
       sectionId: overrides[n.id] ?? n.sectionId,
       position: pos[n.id] ?? n.position,
-    };
+    });
   });
   for (const m of state.manualNodes ?? []) {
-    nodes.push({ ...m, position: pos[m.id] ?? m.position });
+    nodes.push(withMeta({ ...m, position: pos[m.id] ?? m.position }));
   }
   if (hideMissing) nodes = nodes.filter((n) => n.status !== "missing");
 

@@ -38,6 +38,12 @@ export interface GraphNode {
   status?: NodeStatus;
   files?: NodeFile[];
   note?: string;
+  /** epoch ms when the node was created; manual nodes set this automatically. */
+  createdAt?: number;
+  /** epoch ms deadline; the editor renders a live countdown and an overdue state. */
+  dueAt?: number;
+  /** when true, the node cannot be dragged on the canvas. */
+  locked?: boolean;
   /** persisted position; when absent the layout computes a default. */
   position?: { x: number; y: number };
 }
