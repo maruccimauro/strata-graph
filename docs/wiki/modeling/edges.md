@@ -14,7 +14,7 @@ An edge runs from the **source** (upstream, the prerequisite) to the **target** 
 
 There are two ways:
 
-1. **Drag to connect**: drag from the border of one node onto another. A direction dialog asks how they relate: _A depends on B_, _B depends on A_, or a _comment link_ (no dependency).
+1. **Drag to connect**: drag from the border of one node onto another. Each document node exposes eight connection points on hover (the four side centers and the four corners), so you can start a drag from whichever point faces the other node. A direction dialog asks how they relate: _A depends on B_, _B depends on A_, or a _comment link_ (no dependency).
 2. **The Connect panel**: open a node's overlay and choose **🔗 Connect**. Pick the direction, filter by section, and choose the target node. This is the reliable path when nodes are far apart.
 
 ## How edges look
