@@ -4,6 +4,8 @@ node_modules/
 # Build output
 dist/
 *.tsbuildinfo
+docs/wiki/.vitepress/dist/
+docs/wiki/.vitepress/cache/
 
 # Local / private
 *.local
