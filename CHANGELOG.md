@@ -32,6 +32,8 @@ history; the project carried no tagged releases before this file was introduced.
   batch, but cut a version (bump plus tag) at a milestone, not once per batch.
 - Moved the hard process rules (versioning, wiki, configurability, i18n) into
   `.claude/rules/`, one file each, imported from `CLAUDE.md` as a one-line index.
+- Extended `.claude/rules/` with git-and-commits and cross-impact rules, and made
+  the rule files the source of truth for each process rule.
 
 ## [0.6.0] - 2026-11-04
 
