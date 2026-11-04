@@ -2,6 +2,9 @@ import type { GraphModel } from "../core/types";
 import { buildSdlcModel, SDLC_BASE_ID } from "./sdlc";
 import { buildBoardModel, BOARD_BASE_ID } from "./board";
 
+export { SDLC_BASE_ID } from "./sdlc";
+export { BOARD_BASE_ID } from "./board";
+
 /**
  * Registry of built-in Strata Graph Models. Each entry can produce a fresh
  * ("clean") GraphModel to start from. The editor reads this list for the

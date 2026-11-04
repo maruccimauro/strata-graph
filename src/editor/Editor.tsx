@@ -15,7 +15,7 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
-import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs } from "./api";
+import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs, type Startup } from "./api";
 import { t, setLang } from "./i18n";
 import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
 import { toSgm, fromSgm } from "../core/sgm";
@@ -32,7 +32,17 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable === true;
 }
 
-export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model: GraphModel) => void }) {
+export function Editor({
+  boot,
+  onLoadModel,
+  firstRun,
+  onChooseStartup,
+}: {
+  boot: Boot;
+  onLoadModel?: (model: GraphModel, startup?: Startup) => void;
+  firstRun?: boolean;
+  onChooseStartup?: (demo: boolean) => void;
+}) {
   const graph = boot.graph;
   const connected = boot.mode === "connected";
   const rf = useReactFlow();
@@ -59,7 +69,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   // Built-in model picker (New from built-in) and the discard confirmation that
   // guards replacing a graph that has unsaved work.
   const [newModelOpen, setNewModelOpen] = useState(false);
-  const [pendingLoad, setPendingLoad] = useState<GraphModel | null>(null);
+  const [pendingLoad, setPendingLoad] = useState<{ model: GraphModel; startup?: Startup } | null>(null);
   // Edge retarget in progress (N-25): one endpoint follows the cursor while the
   // other stays fixed. Keeps the original overlay anchor so Esc can reopen it.
   const [retarget, setRetarget] = useState<
@@ -465,11 +475,11 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
 
   /** Load a model as the current graph, confirming first if there is work to lose. */
   const requestLoad = useCallback(
-    (next: GraphModel) => {
+    (next: GraphModel, startup?: Startup) => {
       if (!onLoadModel) return;
       setNewModelOpen(false);
-      if (hasWork(state)) setPendingLoad(next);
-      else onLoadModel(next);
+      if (hasWork(state)) setPendingLoad({ model: next, startup });
+      else onLoadModel(next, startup);
     },
     [onLoadModel, hasWork, state],
   );
@@ -477,12 +487,12 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   const pickBuiltIn = useCallback(
     (builtInId: string) => {
       const bi = getBuiltIn(builtInId);
-      if (bi) requestLoad(bi.build());
+      if (bi) requestLoad(bi.build(), { base: builtInId, demo: false });
     },
     [requestLoad],
   );
 
-  const loadDemo = useCallback(() => requestLoad(buildDemoModel()), [requestLoad]);
+  const loadDemo = useCallback(() => requestLoad(buildDemoModel(), { base: "sdlc", demo: true }), [requestLoad]);
 
   const onExportPng = useCallback(() => {
     const el = document.querySelector(".react-flow__viewport") as HTMLElement | null;
@@ -757,8 +767,19 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           message={t("newModel.replaceBody")}
           confirmLabel={t("newModel.replace")}
           danger
-          onConfirm={() => { onLoadModel?.(pendingLoad); setPendingLoad(null); }}
+          onConfirm={() => { onLoadModel?.(pendingLoad.model, pendingLoad.startup); setPendingLoad(null); }}
           onCancel={() => setPendingLoad(null)}
+        />
+      )}
+
+      {firstRun && onChooseStartup && (
+        <ConfirmDialog
+          title={t("welcome.title")}
+          message={t("welcome.body")}
+          confirmLabel={t("welcome.loadDemo")}
+          cancelLabel={t("welcome.startEmpty")}
+          onConfirm={() => onChooseStartup(true)}
+          onCancel={() => onChooseStartup(false)}
         />
       )}
 

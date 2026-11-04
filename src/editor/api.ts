@@ -56,6 +56,33 @@ export interface Boot {
 }
 
 const KEY = (name: string) => `strata:${name}`;
+const STARTUP_KEY = "strata:startup";
+
+/** What to load on startup in static mode: a built-in id, and whether to use its
+ *  demo variant. Absent until the user is first asked (first run). */
+export interface Startup {
+  base: string;
+  demo: boolean;
+}
+
+export function loadStartup(): Startup | null {
+  try {
+    const raw = localStorage.getItem(STARTUP_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Startup;
+    return typeof v?.base === "string" ? { base: v.base, demo: Boolean(v.demo) } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStartup(s: Startup): void {
+  try {
+    localStorage.setItem(STARTUP_KEY, JSON.stringify(s));
+  } catch {
+    /* ignore */
+  }
+}
 
 /** Try the connected server; fall back to the demo graph + localStorage state. */
 export async function boot(demo: GraphModel): Promise<Boot> {
