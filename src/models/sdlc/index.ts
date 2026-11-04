@@ -18,11 +18,14 @@ const DEMO_GENERATED = new Set([
 
 /**
  * Build a GraphModel from the SDLC canon. With a `scan` (connected mode) it
- * reflects the real docs/ state, extra files and link-based edges; without one
- * it uses a small demo status mix so the editor renders something concrete.
+ * reflects the real docs/ state, extra files and link-based edges. Without a
+ * scan: `clean` starts a fresh project (every document not generated yet), while
+ * the default uses a small demo status mix so the editor renders something
+ * concrete.
  */
-export function buildSdlcModel(opts?: { name?: string; scan?: ScanResult }): GraphModel {
+export function buildSdlcModel(opts?: { name?: string; scan?: ScanResult; clean?: boolean }): GraphModel {
   const scan = opts?.scan;
+  const clean = opts?.clean ?? false;
 
   const sectionNodes: GraphNode[] = SECTIONS.map((s) => ({
     id: `section:${s.id}`,
@@ -39,9 +42,11 @@ export function buildSdlcModel(opts?: { name?: string; scan?: ScanResult }): Gra
       ? gen
         ? "generated"
         : "missing"
-      : DEMO_GENERATED.has(d.id)
-        ? "generated"
-        : "missing";
+      : clean
+        ? "missing"
+        : DEMO_GENERATED.has(d.id)
+          ? "generated"
+          : "missing";
     return {
       id: d.id,
       label: d.label,
