@@ -530,12 +530,14 @@ function buildEdges(
     const baseColor = ghost ? ghostCol() : prefs.edgeColor === "neutral" ? mutedCol() : accent(hue);
     const selHL = edgeDir(e, selected, selAnc, selDesc);
     const hovHL = edgeDir(e, hoverNode, hovAnc, hovDesc);
-    // A node's chain (selected or hovered) is lit with a dispersed glow in the
-    // up/down colors, not a thick stroke: the halo is the highlight.
-    const chainHL = selHL !== "none" ? selHL : hovHL;
+    // Selection (click) = focus mode: the chain is a solid thicker stroke over
+    // the dimmed rest, no glow. Hover (Paths) = preview: the chain is lit with a
+    // dispersed glow and nothing is dimmed. Selection wins where both apply.
     let styleBase: { stroke: string; strokeWidth: number; opacity: number; strokeDasharray?: string; filter?: string };
-    if (chainHL === "up") styleBase = { stroke: upCol(), strokeWidth: 1.8, opacity: 1, filter: glowFilter(upCol()) };
-    else if (chainHL === "down") styleBase = { stroke: downCol(), strokeWidth: 1.8, opacity: 1, strokeDasharray: "6 4", filter: glowFilter(downCol()) };
+    if (selHL === "up") styleBase = { stroke: upCol(), strokeWidth: 2.6, opacity: 1 };
+    else if (selHL === "down") styleBase = { stroke: downCol(), strokeWidth: 2.6, opacity: 1, strokeDasharray: "6 4" };
+    else if (hovHL === "up") styleBase = { stroke: upCol(), strokeWidth: 1.8, opacity: 1, filter: glowFilter(upCol()) };
+    else if (hovHL === "down") styleBase = { stroke: downCol(), strokeWidth: 1.8, opacity: 1, strokeDasharray: "6 4", filter: glowFilter(downCol()) };
     else
       styleBase = {
         stroke: baseColor,
@@ -543,7 +545,7 @@ function buildEdges(
         strokeDasharray: ghost ? "5 4" : undefined,
         opacity: selected ? 0.07 : ghost ? 0.5 : 0.55,
       };
-    // The hovered or selected edge itself gains the same glow in its own color.
+    // A selected or hovered edge itself always glows in its own color.
     const glowEdge = e.id === selectedEdge || e.id === hoverEdge;
     const style = glowEdge
       ? { ...styleBase, strokeWidth: Math.max(styleBase.strokeWidth, 2), opacity: 1, filter: glowFilter(styleBase.stroke) }
