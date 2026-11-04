@@ -30,6 +30,8 @@ history; the project carried no tagged releases before this file was introduced.
 
 - Clarified the versioning rule: update the changelog under `[Unreleased]` every
   batch, but cut a version (bump plus tag) at a milestone, not once per batch.
+- Moved the hard process rules (versioning, wiki, configurability, i18n) into
+  `.claude/rules/`, one file each, imported from `CLAUDE.md` as a one-line index.
 
 ## [0.6.0] - 2026-11-04
 
