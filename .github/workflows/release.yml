@@ -1,0 +1,58 @@
+name: Release
+
+# Publish a GitHub Release whenever a version tag (vX.Y.Z) is pushed. The release
+# notes come from the matching CHANGELOG.md section (single source of truth) and
+# the self-contained offline build is attached as a downloadable asset.
+#
+# The workflow_dispatch entry builds and releases an existing tag on demand; it
+# is used to backfill releases for tags created before this workflow existed.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing version tag to release (for example v0.6.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: echo "name=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the offline single-file app
+        run: npm run build
+
+      - name: Extract release notes from the changelog
+        run: node scripts/changelog-release-notes.mjs "${{ steps.tag.outputs.name }}" > RELEASE_NOTES.md
+
+      - name: Package the offline build
+        run: cp dist/index.html "strata-${{ steps.tag.outputs.name }}.html"
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.tag.outputs.name }}" \
+            "strata-${{ steps.tag.outputs.name }}.html" \
+            --title "${{ steps.tag.outputs.name }}" \
+            --notes-file RELEASE_NOTES.md

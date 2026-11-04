@@ -19,6 +19,10 @@ history; the project carried no tagged releases before this file was introduced.
 
 ### Added
 
+- GitHub Release workflow: pushing a version tag builds the offline single-file
+  app, takes the release notes from the matching changelog section, and attaches
+  the build as a downloadable `strata-vX.Y.Z.html` asset.
+- Manual workflow trigger to backfill a release for an existing tag.
 - Built-in model picker (File ▸ New from built-in, the ⊕ New quick-bar button,
   and the canvas context menu) to start a fresh graph from a registered built-in.
 - Second built-in model, a domain-neutral task board, alongside SDLC.
