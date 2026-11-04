@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Button } from "./primitives";
 import { MUTED, PANEL, INK } from "../theme";
+import { t } from "../i18n";
 import type { Prefs, Mode } from "../api";
 
 export interface TopBarActions {
@@ -113,57 +114,57 @@ export function TopBar(p: TopBarProps) {
       {/* menu bar */}
       <div style={{ display: "flex", alignItems: "center", gap: 2, padding: "3px 8px" }}>
         <strong style={{ fontSize: ".95rem", margin: "0 8px 0 4px" }}>Strata</strong>
-        <Menu label="File" open={menu === "file"} onToggle={() => toggle("file")}>
-          <MenuItem label="Add node…" shortcut="N" onClick={() => { close(); p.onAddNode(); }} />
-          {p.onImportSgm && <MenuItem label="Import model (.sgm)…" onClick={() => { close(); p.onImportSgm!(); }} />}
-          <MenuItem label="Export model (.sgm)…" onClick={() => { close(); p.onExportSgm(); }} />
-          <MenuItem label="Export PNG…" onClick={() => { close(); p.onExportPng(); }} />
+        <Menu label={t("menu.file")} open={menu === "file"} onToggle={() => toggle("file")}>
+          <MenuItem label={t("menu.file.add")} shortcut="N" onClick={() => { close(); p.onAddNode(); }} />
+          {p.onImportSgm && <MenuItem label={t("menu.file.import")} onClick={() => { close(); p.onImportSgm!(); }} />}
+          <MenuItem label={t("menu.file.export")} onClick={() => { close(); p.onExportSgm(); }} />
+          <MenuItem label={t("menu.file.png")} onClick={() => { close(); p.onExportPng(); }} />
         </Menu>
-        <Menu label="Edit" open={menu === "edit"} onToggle={() => toggle("edit")}>
-          <MenuItem label="Undo" shortcut="Ctrl+Z" disabled={!p.canUndo} onClick={() => { close(); p.onUndo(); }} />
-          <MenuItem label="Redo" shortcut="Ctrl+Y" disabled={!p.canRedo} onClick={() => { close(); p.onRedo(); }} />
-          <MenuItem label="Preferences…" onClick={() => { close(); p.onOpenPrefs(); }} />
+        <Menu label={t("menu.edit")} open={menu === "edit"} onToggle={() => toggle("edit")}>
+          <MenuItem label={t("menu.edit.undo")} shortcut="Ctrl+Z" disabled={!p.canUndo} onClick={() => { close(); p.onUndo(); }} />
+          <MenuItem label={t("menu.edit.redo")} shortcut="Ctrl+Y" disabled={!p.canRedo} onClick={() => { close(); p.onRedo(); }} />
+          <MenuItem label={t("menu.edit.prefs")} onClick={() => { close(); p.onOpenPrefs(); }} />
         </Menu>
-        <Menu label="View" open={menu === "view"} onToggle={() => toggle("view")}>
-          <MenuItem label="Fit to screen" onClick={() => { close(); p.onFit(); }} />
-          <MenuItem label="Reset layout" onClick={() => { close(); p.onResetLayout(); }} />
+        <Menu label={t("menu.view")} open={menu === "view"} onToggle={() => toggle("view")}>
+          <MenuItem label={t("menu.view.fit")} onClick={() => { close(); p.onFit(); }} />
+          <MenuItem label={t("menu.view.reset")} onClick={() => { close(); p.onResetLayout(); }} />
           <MenuItem
-            label={`Layout: ${p.prefs.layout === "vertical" ? "vertical" : "horizontal"}`}
+            label={t("menu.view.layout", { value: t(p.prefs.layout === "vertical" ? "layout.vertical" : "layout.horizontal") })}
             onClick={() => p.onPrefsChange({ layout: p.prefs.layout === "vertical" ? "horizontal" : "vertical" })}
           />
-          <MenuItem label={`${check(p.prefs.hideMissing)}  Hide not-generated`} onClick={() => p.onPrefsChange({ hideMissing: !p.prefs.hideMissing })} />
-          <MenuItem label={`${check(p.prefs.edgeColor === "section")}  Color edges by section`} onClick={() => p.onPrefsChange({ edgeColor: p.prefs.edgeColor === "section" ? "neutral" : "section" })} />
-          <MenuItem label={`${check(p.prefs.showDeps)}  Show dependency edges`} onClick={() => p.onPrefsChange({ showDeps: !p.prefs.showDeps })} />
-          <MenuItem label={`${check(p.prefs.hoverHighlight)}  Highlight paths on hover`} onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} />
-          <MenuItem label="Toggle theme" onClick={() => { close(); p.onToggleTheme(); }} />
+          <MenuItem label={`${check(p.prefs.hideMissing)}  ${t("menu.view.hideMissing")}`} onClick={() => p.onPrefsChange({ hideMissing: !p.prefs.hideMissing })} />
+          <MenuItem label={`${check(p.prefs.edgeColor === "section")}  ${t("menu.view.colorBySection")}`} onClick={() => p.onPrefsChange({ edgeColor: p.prefs.edgeColor === "section" ? "neutral" : "section" })} />
+          <MenuItem label={`${check(p.prefs.showDeps)}  ${t("menu.view.showDeps")}`} onClick={() => p.onPrefsChange({ showDeps: !p.prefs.showDeps })} />
+          <MenuItem label={`${check(p.prefs.hoverHighlight)}  ${t("menu.view.hoverPaths")}`} onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} />
+          <MenuItem label={t("menu.view.theme")} onClick={() => { close(); p.onToggleTheme(); }} />
         </Menu>
 
         <span style={{ flex: 1 }} />
         <span
-          title={connected ? "Local server: real scan, paths, open file/folder." : "Static: demo graph, localStorage."}
+          title={connected ? t("badge.connected.tip") : t("badge.static.tip")}
           style={{ fontSize: ".68rem", fontWeight: 700, padding: "2px 9px", borderRadius: 999, background: connected ? "rgba(31,138,76,.15)" : "var(--line)", color: connected ? "#1f8a4c" : MUTED }}
         >
-          {connected ? "● Connected" : "○ Static"}
+          {connected ? t("badge.connected") : t("badge.static")}
         </span>
         <span style={{ color: MUTED, fontSize: ".78rem", margin: "0 6px" }}>
-          {p.projectName} · {p.genDocs}/{p.totalDocs} docs · {p.sections} sections
+          {t("badge.summary", { project: p.projectName, gen: p.genDocs, total: p.totalDocs, sections: p.sections })}
         </span>
       </div>
 
       {/* quick toolbar */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderTop: "1px solid var(--line)" }}>
-        <Button onClick={p.onAddNode} variant="primary">＋ Node</Button>
-        <Button onClick={p.onUndo} title="Undo (Ctrl+Z)" style={p.canUndo ? undefined : { opacity: 0.5 }}>↶</Button>
-        <Button onClick={p.onRedo} title="Redo (Ctrl+Y)" style={p.canRedo ? undefined : { opacity: 0.5 }}>↷</Button>
+        <Button onClick={p.onAddNode} variant="primary">＋ {t("action.node")}</Button>
+        <Button onClick={p.onUndo} title={t("tip.undo")} style={p.canUndo ? undefined : { opacity: 0.5 }}>↶</Button>
+        <Button onClick={p.onRedo} title={t("tip.redo")} style={p.canRedo ? undefined : { opacity: 0.5 }}>↷</Button>
         <span style={{ width: 1, height: 20, background: "var(--line)", margin: "0 3px" }} />
-        <Button onClick={p.onExportPng} title="Export the diagram as PNG">⇩ PNG</Button>
-        <Button onClick={p.onFit} title="Fit to screen">⤢ Fit</Button>
-        <Button onClick={p.onResetLayout} title="Reset node positions">⟳ Reset</Button>
+        <Button onClick={p.onExportPng} title={t("tip.png")}>⇩ PNG</Button>
+        <Button onClick={p.onFit} title={t("tip.fit")}>⤢ {t("quickbar.fit")}</Button>
+        <Button onClick={p.onResetLayout} title={t("tip.reset")}>⟳ {t("quickbar.reset")}</Button>
         <span style={{ flex: 1 }} />
-        <Button onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} active={p.prefs.hoverHighlight} title="Highlight a node's upstream/downstream paths on hover">✦ Paths</Button>
-        <Button onClick={() => p.onPrefsChange({ hideMissing: !p.prefs.hideMissing })} active={p.prefs.hideMissing} title="Hide not-generated nodes">Hide ∅</Button>
-        <Button onClick={p.onOpenPrefs} title="Preferences">⚙</Button>
-        <Button onClick={p.onToggleTheme} title="Toggle light/dark">◐</Button>
+        <Button onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} active={p.prefs.hoverHighlight} title={t("tip.paths")}>✦ {t("quickbar.paths")}</Button>
+        <Button onClick={() => p.onPrefsChange({ hideMissing: !p.prefs.hideMissing })} active={p.prefs.hideMissing} title={t("tip.hideMissing")}>{t("quickbar.hideMissing")}</Button>
+        <Button onClick={p.onOpenPrefs} title={t("tip.prefs")}>⚙</Button>
+        <Button onClick={p.onToggleTheme} title={t("tip.theme")}>◐</Button>
       </div>
     </div>
   );

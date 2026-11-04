@@ -14,6 +14,8 @@ export interface Prefs {
   /** on hover, transiently highlight a node's upstream/downstream paths and the
    *  hovered edge (same visual as selecting, without the click). */
   hoverHighlight: boolean;
+  /** UI language (i18n). English only for now; see `src/editor/i18n.ts`. */
+  lang: string;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -22,6 +24,7 @@ export const DEFAULT_PREFS: Prefs = {
   showDeps: true,
   layout: "horizontal",
   hoverHighlight: true,
+  lang: "en",
 };
 
 export interface ViewerState {

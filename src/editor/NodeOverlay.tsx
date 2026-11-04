@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Panel, Button, Field, Combobox } from "./ui/primitives";
 import { MUTED } from "./theme";
+import { t } from "./i18n";
 import type { GraphNode, Section } from "../core/types";
 
 export interface NodeOverlayProps {
@@ -96,7 +97,7 @@ function Countdown({ dueAt }: { dueAt: number }) {
   const overdue = left < 0;
   return (
     <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, color: overdue ? "var(--ghost)" : "var(--ink)" }}>
-      {formatCountdown(left)}{overdue ? " overdue" : " left"}
+      {formatCountdown(left)}{" "}{overdue ? t("countdown.overdue") : t("countdown.left")}
     </span>
   );
 }
@@ -113,25 +114,25 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
       <div style={{ display: "flex", gap: 6, marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid var(--line)" }}>
         <IconAction
           icon={node.locked ? "🔒" : "🔓"}
-          title={node.locked ? "Unlock node (allow moving)" : "Lock node (prevent moving)"}
+          title={node.locked ? t("overlay.unlock.tip") : t("overlay.lock.tip")}
           onClick={() => onSetNodeMeta(node.id, { locked: !node.locked })}
         />
-        {!isSection && <IconAction icon="🔗" title="Connect to another node" onClick={() => onConnectPanel(node)} />}
-        {!isSection && <IconAction icon="🏷️" title="Add a comment" onClick={() => onAddComment(node.id)} />}
-        {node.origin === "manual" && <IconAction icon="🗑" title="Delete node" danger onClick={() => onDelete(node.id)} />}
+        {!isSection && <IconAction icon="🔗" title={t("overlay.connect.tip")} onClick={() => onConnectPanel(node)} />}
+        {!isSection && <IconAction icon="🏷️" title={t("overlay.comment.tip")} onClick={() => onAddComment(node.id)} />}
+        {node.origin === "manual" && <IconAction icon="🗑" title={t("overlay.delete.tip")} danger onClick={() => onDelete(node.id)} />}
       </div>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         {isComment ? (
-          <Flag text="🏷️ Comment" tone="comment" />
+          <Flag text={t("flag.comment")} tone="comment" />
         ) : (
           <>
-            <Flag text={node.origin === "manual" ? "✎ Manual" : "⚙ Automatic"} tone={node.origin === "manual" ? "manual" : "auto"} />
+            <Flag text={node.origin === "manual" ? t("flag.manual") : t("flag.auto")} tone={node.origin === "manual" ? "manual" : "auto"} />
             {!isSection &&
-              (node.status === "missing" ? <Flag text="Not generated" tone="miss" /> : <Flag text="Generated" tone="gen" />)}
+              (node.status === "missing" ? <Flag text={t("flag.notGenerated")} tone="miss" /> : <Flag text={t("flag.generated")} tone="gen" />)}
           </>
         )}
-        {node.locked && <Flag text="🔒 Locked" tone="manual" />}
+        {node.locked && <Flag text={t("flag.locked")} tone="manual" />}
       </div>
 
       {isComment && node.note && <div style={{ fontSize: ".82rem", marginBottom: 8 }}>{node.note}</div>}
@@ -146,8 +147,8 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
               </span>
               {connected && (
                 <>
-                  <Button variant="ghost" title="Open file" onClick={() => onOpen(f.path, "file")}>📄</Button>
-                  <Button variant="ghost" title="Open folder" onClick={() => onOpen(f.path, "folder")}>📁</Button>
+                  <Button variant="ghost" title={t("file.open")} onClick={() => onOpen(f.path, "file")}>📄</Button>
+                  <Button variant="ghost" title={t("folder.open")} onClick={() => onOpen(f.path, "folder")}>📁</Button>
                 </>
               )}
             </div>
@@ -155,25 +156,25 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
         </div>
       )}
       {!isComment && connected && (!node.files || node.files.length === 0) && (
-        <div style={{ fontSize: ".76rem", color: MUTED, margin: "2px 0 8px" }}>No file associated.</div>
+        <div style={{ fontSize: ".76rem", color: MUTED, margin: "2px 0 8px" }}>{t("file.none")}</div>
       )}
 
       {/* section reassignment (filterable) */}
       {!isSection && (
-        <Field label="Section">
+        <Field label={t("overlay.section")}>
           <div style={{ width: 150 }}>
             <Combobox
               value={node.sectionId ?? ""}
-              options={[{ value: "", label: "— none —" }, ...sections.map((s) => ({ value: s.id, label: s.label }))]}
+              options={[{ value: "", label: t("overlay.sectionNone") }, ...sections.map((s) => ({ value: s.id, label: s.label }))]}
               onChange={(v) => onSetSection(node.id, v)}
-              placeholder="Section…"
+              placeholder={t("overlay.sectionPh")}
             />
           </div>
         </Field>
       )}
 
       {/* dates: creation (read-only) + due date with a live countdown */}
-      <Field label="Due date">
+      <Field label={t("overlay.dueDate")}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <input
             type="datetime-local"
@@ -184,7 +185,7 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
           {node.dueAt && (
             <button
               onClick={() => onSetNodeMeta(node.id, { dueAt: undefined })}
-              title="Clear due date"
+              title={t("overlay.clearDue")}
               style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: ".9rem" }}
             >
               ✕
@@ -199,7 +200,7 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
       )}
       {node.createdAt && (
         <div style={{ fontSize: ".72rem", color: MUTED, marginTop: 4 }}>
-          Created {new Date(node.createdAt).toLocaleString()}
+          {t("overlay.created", { date: new Date(node.createdAt).toLocaleString() })}
         </div>
       )}
     </Panel>

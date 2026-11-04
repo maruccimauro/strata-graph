@@ -12,6 +12,7 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { buildRenderModel } from "./model";
 import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs } from "./api";
+import { t, setLang } from "./i18n";
 import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
 import { toSgm, fromSgm } from "../core/sgm";
 import { isDark, MUTED } from "./theme";
@@ -59,6 +60,9 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   const [retargetList, setRetargetList] = useState<{ edgeId: string; movingEnd: "source" | "target"; fixedNodeId: string } | null>(null);
 
   const prefs = state.prefs ?? DEFAULT_PREFS;
+  // Select the UI language before rendering any translated string (English only
+  // today). Mirrors the theme pattern: a cheap, synchronous read from prefs.
+  setLang(prefs.lang);
   const model = useMemo(() => buildRenderModel(graph, state), [graph, state]);
   const labelOf = useCallback((id: string) => model.nodes.find((n) => n.id === id)?.label ?? id, [model]);
   const infoOf = useCallback(
@@ -173,7 +177,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
       if (r.cancelled) return;
       // error -> fall through to prompt
     }
-    const name = window.prompt("Node name:");
+    const name = window.prompt(t("prompt.nodeName"));
     if (name) addNodeAt({ label: name, kind: "doc", origin: "manual", status: "generated" });
   }, [connected, addNodeAt]);
 
@@ -347,9 +351,9 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
 
   const onAddComment = useCallback(
     (nodeId: string) => {
-      const title = window.prompt("Comment title:");
+      const title = window.prompt(t("prompt.commentTitle"));
       if (!title) return;
-      const note = window.prompt("Description (optional):") ?? undefined;
+      const note = window.prompt(t("prompt.commentDesc")) ?? undefined;
       const anchor = model.nodes.find((n) => n.id === nodeId)?.position ?? { x: 0, y: 0 };
       const id = `manual:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 6)}`;
       commit((s) => ({
@@ -522,29 +526,29 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
 
   // ----- context menus (right-click), per the configurability policy -----
   const paneMenu = (): ContextMenuItem[] => [
-    { label: "Add node", onClick: () => void onAddNode() },
-    { label: "Fit to screen", onClick: onFit },
-    { label: "Reset layout", onClick: onResetLayout },
+    { label: t("ctx.addNode"), onClick: () => void onAddNode() },
+    { label: t("menu.view.fit"), onClick: onFit },
+    { label: t("menu.view.reset"), onClick: onResetLayout },
     { label: "", onClick: () => {}, separator: true },
-    { label: "Highlight paths on hover", checked: prefs.hoverHighlight, onClick: () => setPrefs({ hoverHighlight: !prefs.hoverHighlight }) },
-    { label: "Show dependency edges", checked: prefs.showDeps, onClick: () => setPrefs({ showDeps: !prefs.showDeps }) },
-    { label: "Hide not-generated", checked: prefs.hideMissing, onClick: () => setPrefs({ hideMissing: !prefs.hideMissing }) },
+    { label: t("menu.view.hoverPaths"), checked: prefs.hoverHighlight, onClick: () => setPrefs({ hoverHighlight: !prefs.hoverHighlight }) },
+    { label: t("menu.view.showDeps"), checked: prefs.showDeps, onClick: () => setPrefs({ showDeps: !prefs.showDeps }) },
+    { label: t("menu.view.hideMissing"), checked: prefs.hideMissing, onClick: () => setPrefs({ hideMissing: !prefs.hideMissing }) },
     { label: "", onClick: () => {}, separator: true },
-    { label: "Toggle theme", onClick: toggleTheme },
-    { label: "Preferences…", onClick: () => setPrefsOpen(true) },
+    { label: t("menu.view.theme"), onClick: toggleTheme },
+    { label: t("menu.edit.prefs"), onClick: () => setPrefsOpen(true) },
   ];
   const nodeMenu = (node: GraphNode, x: number, y: number): ContextMenuItem[] => {
     const items: ContextMenuItem[] = [
-      { label: "Open details", onClick: () => { setEdgeOverlay(null); setSelectedEdge(null); setSelectedNode(node.id); setOverlay({ node, x, y }); } },
-      { label: node.locked ? "Unlock" : "Lock", onClick: () => onSetNodeMeta(node.id, { locked: !node.locked }) },
+      { label: t("ctx.openDetails"), onClick: () => { setEdgeOverlay(null); setSelectedEdge(null); setSelectedNode(node.id); setOverlay({ node, x, y }); } },
+      { label: node.locked ? t("ctx.unlock") : t("ctx.lock"), onClick: () => onSetNodeMeta(node.id, { locked: !node.locked }) },
     ];
     if (node.kind !== "section") {
       items.push(
-        { label: "Connect…", onClick: () => { setOverlay(null); setConnectFrom(node); } },
-        { label: "Add comment", onClick: () => onAddComment(node.id) },
+        { label: t("ctx.connect"), onClick: () => { setOverlay(null); setConnectFrom(node); } },
+        { label: t("ctx.addComment"), onClick: () => onAddComment(node.id) },
       );
       if (node.origin === "manual") {
-        items.push({ label: "", onClick: () => {}, separator: true }, { label: "Delete", danger: true, onClick: () => onDeleteNode(node.id) });
+        items.push({ label: "", onClick: () => {}, separator: true }, { label: t("common.delete"), danger: true, onClick: () => onDeleteNode(node.id) });
       }
     }
     return items;
@@ -552,14 +556,14 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   const edgeMenu = (id: string, source: string, target: string, x: number, y: number): ContextMenuItem[] => {
     const deletable = !id.startsWith("branch:");
     const items: ContextMenuItem[] = [
-      { label: "Open details", onClick: () => { setOverlay(null); setSelectedNode(null); setSelectedEdge(id); setEdgeOverlay({ id, source, target, deletable, x, y }); } },
+      { label: t("ctx.openDetails"), onClick: () => { setOverlay(null); setSelectedNode(null); setSelectedEdge(id); setEdgeOverlay({ id, source, target, deletable, x, y }); } },
     ];
     if (deletable) {
       items.push(
-        { label: "Retarget prerequisite end…", onClick: () => beginRetarget({ id, source, target, x, y }, "source") },
-        { label: "Retarget dependent end…", onClick: () => beginRetarget({ id, source, target, x, y }, "target") },
+        { label: t("ctx.retargetPrereq"), onClick: () => beginRetarget({ id, source, target, x, y }, "source") },
+        { label: t("ctx.retargetDependent"), onClick: () => beginRetarget({ id, source, target, x, y }, "target") },
         { label: "", onClick: () => {}, separator: true },
-        { label: "Delete", danger: true, onClick: () => onDeleteEdge(id) },
+        { label: t("common.delete"), danger: true, onClick: () => onDeleteEdge(id) },
       );
     }
     return items;
@@ -692,14 +696,14 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
 
       {edgeOverlay && (
         <Panel
-          title="Dependency"
+          title={t("edge.title")}
           onClose={() => setEdgeOverlay(null)}
           style={{ left: Math.min(edgeOverlay.x + 12, window.innerWidth - 300), top: Math.min(edgeOverlay.y + 12, window.innerHeight - 200) }}
           actions={
             edgeOverlay.deletable ? (
               <button
                 onClick={() => onDeleteEdge(edgeOverlay.id)}
-                title="Delete this connection"
+                title={t("edge.deleteTip")}
                 style={{ border: "none", background: "transparent", color: "var(--ghost)", cursor: "pointer", fontSize: ".82rem" }}
               >
                 🗑
@@ -718,35 +722,35 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
               <div style={{ fontSize: ".82rem", display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={row}>
                   <div>
-                    <div style={label}>Depends on</div>
+                    <div style={label}>{t("edge.dependsOn")}</div>
                     <b>{from.label}</b>
                     {from.section && <span style={{ color: MUTED }}> · {from.section}</span>}
                   </div>
                   {edgeOverlay.deletable && (
                     <div style={{ display: "flex", gap: 5 }}>
-                      <button onClick={() => startMouseRetarget("source")} title="Retarget by pointer: click a node to set the new end (Esc cancels)" style={iconBtn}>⌖</button>
-                      <button onClick={() => startListRetarget(edgeOverlay, "source")} title="Retarget from a list" style={iconBtn}>☰</button>
+                      <button onClick={() => startMouseRetarget("source")} title={t("edge.retarget.pointer")} style={iconBtn}>⌖</button>
+                      <button onClick={() => startListRetarget(edgeOverlay, "source")} title={t("edge.retarget.list")} style={iconBtn}>☰</button>
                     </div>
                   )}
                 </div>
                 <div style={{ color: "var(--down)", fontSize: ".9rem" }}>↓</div>
                 <div style={row}>
                   <div>
-                    <div style={label}>Dependent</div>
+                    <div style={label}>{t("edge.dependent")}</div>
                     <b>{to.label}</b>
                     {to.section && <span style={{ color: MUTED }}> · {to.section}</span>}
                   </div>
                   {edgeOverlay.deletable && (
                     <div style={{ display: "flex", gap: 5 }}>
-                      <button onClick={() => startMouseRetarget("target")} title="Retarget by pointer: click a node to set the new end (Esc cancels)" style={iconBtn}>⌖</button>
-                      <button onClick={() => startListRetarget(edgeOverlay, "target")} title="Retarget from a list" style={iconBtn}>☰</button>
+                      <button onClick={() => startMouseRetarget("target")} title={t("edge.retarget.pointer")} style={iconBtn}>⌖</button>
+                      <button onClick={() => startListRetarget(edgeOverlay, "target")} title={t("edge.retarget.list")} style={iconBtn}>☰</button>
                     </div>
                   )}
                 </div>
                 {edgeOverlay.deletable ? (
-                  <div style={{ color: MUTED, fontSize: ".72rem" }}>⌖ pick a node on the canvas · ☰ choose from a list.</div>
+                  <div style={{ color: MUTED, fontSize: ".72rem" }}>{t("edge.retarget.hint")}</div>
                 ) : (
-                  <div style={{ color: MUTED, fontSize: ".74rem" }}>Auto branch from the section node, not deletable.</div>
+                  <div style={{ color: MUTED, fontSize: ".74rem" }}>{t("edge.autoBranch")}</div>
                 )}
               </div>
             );
@@ -768,20 +772,20 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
 
       {pending && (
         <Panel
-          title="New connection"
+          title={t("pending.title")}
           onClose={() => setPending(null)}
           style={{ left: "50%", top: "40%", transform: "translate(-50%, -50%)", minWidth: 280 }}
         >
-          <div style={{ fontSize: ".82rem", marginBottom: 10 }}>How are these related?</div>
+          <div style={{ fontSize: ".82rem", marginBottom: 10 }}>{t("pending.how")}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             <Button onClick={() => confirmConnection("a-dep-b")}>
-              <b>{labelOf(pending.a)}</b>&nbsp;depends on&nbsp;<b>{labelOf(pending.b)}</b>
+              <b>{labelOf(pending.a)}</b>&nbsp;{t("connect.dependsOnWord")}&nbsp;<b>{labelOf(pending.b)}</b>
             </Button>
             <Button onClick={() => confirmConnection("b-dep-a")}>
-              <b>{labelOf(pending.b)}</b>&nbsp;depends on&nbsp;<b>{labelOf(pending.a)}</b>
+              <b>{labelOf(pending.b)}</b>&nbsp;{t("connect.dependsOnWord")}&nbsp;<b>{labelOf(pending.a)}</b>
             </Button>
             <Button variant="ghost" onClick={() => confirmConnection("comment")}>
-              Comment link (no dependency)
+              {t("connect.comment")}
             </Button>
           </div>
         </Panel>
@@ -807,13 +811,13 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           onPointerDown={(e) => e.stopPropagation()}
         >
           <span style={{ fontSize: ".8rem", color: MUTED, marginRight: 2 }}>
-            <b style={{ color: "var(--ink)" }}>{selectedIds.length}</b> selected
+            <b style={{ color: "var(--ink)" }}>{selectedIds.length}</b> {t("bar.selectedWord")}
           </span>
-          <Button title="Lock all selected (prevent moving)" onClick={() => onSetNodeMetaMany(selectedIds, { locked: true })}>
-            🔒 Lock all
+          <Button title={t("bar.lockAll.tip")} onClick={() => onSetNodeMetaMany(selectedIds, { locked: true })}>
+            {t("bar.lockAll")}
           </Button>
-          <Button title="Unlock all selected" onClick={() => onSetNodeMetaMany(selectedIds, { locked: false })}>
-            🔓 Unlock all
+          <Button title={t("bar.unlockAll.tip")} onClick={() => onSetNodeMetaMany(selectedIds, { locked: false })}>
+            {t("bar.unlockAll")}
           </Button>
         </div>
       )}

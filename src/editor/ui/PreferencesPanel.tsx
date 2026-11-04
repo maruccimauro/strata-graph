@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { MUTED, accent } from "../theme";
 import { Field } from "./primitives";
+import { t, LANGUAGES } from "../i18n";
 import type { Prefs } from "../api";
 import type { Section } from "../../core/types";
 
@@ -8,10 +9,10 @@ import type { Section } from "../../core/types";
  *  empty placeholder tabs. Add a new entry here as a category gains content. */
 type Category = "general" | "interface" | "sections";
 
-const CATEGORIES: { id: Category; label: string; icon: string }[] = [
-  { id: "general", label: "General", icon: "⚙" },
-  { id: "interface", label: "Interface", icon: "◧" },
-  { id: "sections", label: "Sections", icon: "▤" },
+const CATEGORIES: { id: Category; icon: string }[] = [
+  { id: "general", icon: "⚙" },
+  { id: "interface", icon: "◧" },
+  { id: "sections", icon: "▤" },
 ];
 
 /** Preferences as a two-pane panel: category list on the left, settings on the
@@ -38,7 +39,7 @@ export function PreferencesPanel({
   return (
     <div
       role="dialog"
-      aria-label="Preferences"
+      aria-label={t("prefs.title")}
       onPointerDown={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
@@ -66,10 +67,10 @@ export function PreferencesPanel({
           borderBottom: "1px solid var(--line)",
         }}
       >
-        <strong style={{ fontSize: ".84rem" }}>Preferences</strong>
+        <strong style={{ fontSize: ".84rem" }}>{t("prefs.title")}</strong>
         <button
           onClick={onClose}
-          title="Close (Esc)"
+          title={t("prefs.close")}
           style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: ".9rem" }}
         >
           ✕
@@ -111,7 +112,7 @@ export function PreferencesPanel({
                 }}
               >
                 <span aria-hidden style={{ fontSize: ".9rem", opacity: 0.85 }}>{c.icon}</span>
-                {c.label}
+                {t(`prefs.cat.${c.id}`)}
               </button>
             );
           })}
@@ -158,21 +159,32 @@ function GeneralPane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partial<
   const layout = prefs.layout ?? "horizontal";
   return (
     <>
-      <Group title="Canvas layout">
+      <Group title={t("prefs.lang.title")}>
+        <select
+          value={prefs.lang ?? "en"}
+          onChange={(e) => onChange({ lang: e.target.value })}
+          style={{ font: "inherit", fontSize: ".82rem", padding: "5px 8px", borderRadius: 7, border: "1px solid var(--line)", background: "var(--panel)", color: "var(--ink)" }}
+        >
+          {LANGUAGES.map((l) => (
+            <option key={l.value} value={l.value}>{l.label}</option>
+          ))}
+        </select>
+      </Group>
+      <Group title={t("prefs.layout.title")}>
         <div style={{ display: "flex", gap: 6 }}>
-          <Segmented label="Horizontal" active={layout === "horizontal"} onClick={() => onChange({ layout: "horizontal" })} />
-          <Segmented label="Vertical" active={layout === "vertical"} onClick={() => onChange({ layout: "vertical" })} />
+          <Segmented label={t("prefs.layout.horizontal")} active={layout === "horizontal"} onClick={() => onChange({ layout: "horizontal" })} />
+          <Segmented label={t("prefs.layout.vertical")} active={layout === "vertical"} onClick={() => onChange({ layout: "vertical" })} />
         </div>
         <p style={{ margin: "6px 0 0", fontSize: ".76rem", color: MUTED, lineHeight: 1.5 }}>
-          Horizontal stacks sections as rows; vertical stacks them as columns.
+          {t("prefs.layout.help")}
         </p>
       </Group>
-      <Group title="Navigation">
+      <Group title={t("prefs.nav.title")}>
         <ul style={{ margin: 0, paddingLeft: 16, fontSize: ".8rem", color: MUTED, lineHeight: 1.7 }}>
-          <li>Middle-click (wheel) drag anywhere to pan the canvas.</li>
-          <li>Drag on empty space to box-select nodes.</li>
-          <li>Drag from a node's edge to another node to connect them.</li>
-          <li>Esc or click outside to dismiss an overlay or selection.</li>
+          <li>{t("prefs.nav.pan")}</li>
+          <li>{t("prefs.nav.box")}</li>
+          <li>{t("prefs.nav.connect")}</li>
+          <li>{t("prefs.nav.dismiss")}</li>
         </ul>
       </Group>
     </>
@@ -203,21 +215,21 @@ function Segmented({ label, active, onClick }: { label: string; active: boolean;
 
 function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partial<Prefs>) => void }) {
   return (
-    <Group title="Display">
-      <Field label="Hide not-generated">
+    <Group title={t("prefs.display.title")}>
+      <Field label={t("menu.view.hideMissing")}>
         <input type="checkbox" checked={prefs.hideMissing} onChange={(e) => onChange({ hideMissing: e.target.checked })} />
       </Field>
-      <Field label="Color edges by section">
+      <Field label={t("menu.view.colorBySection")}>
         <input
           type="checkbox"
           checked={prefs.edgeColor === "section"}
           onChange={(e) => onChange({ edgeColor: e.target.checked ? "section" : "neutral" })}
         />
       </Field>
-      <Field label="Show dependency edges">
+      <Field label={t("menu.view.showDeps")}>
         <input type="checkbox" checked={prefs.showDeps} onChange={(e) => onChange({ showDeps: e.target.checked })} />
       </Field>
-      <Field label="Highlight paths on hover">
+      <Field label={t("menu.view.hoverPaths")}>
         <input type="checkbox" checked={prefs.hoverHighlight} onChange={(e) => onChange({ hoverHighlight: e.target.checked })} />
       </Field>
     </Group>
@@ -237,7 +249,7 @@ function SectionsPane({
 }) {
   const ordered = [...sections].sort((a, b) => a.order - b.order);
   return (
-    <Group title="Section colors">
+    <Group title={t("prefs.sections.title")}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {ordered.map((s) => {
           const custom = customHues[s.id] !== undefined;
@@ -254,10 +266,10 @@ function SectionsPane({
                 {custom && (
                   <button
                     onClick={() => onResetSectionHue(s.id)}
-                    title="Reset to the built-in color"
+                    title={t("prefs.sections.resetTip")}
                     style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: ".72rem" }}
                   >
-                    Reset
+                    {t("prefs.sections.reset")}
                   </button>
                 )}
               </div>
@@ -266,7 +278,7 @@ function SectionsPane({
                 min={0}
                 max={360}
                 value={s.hue}
-                aria-label={`${s.label} hue`}
+                aria-label={t("prefs.sections.hue", { label: s.label })}
                 onChange={(e) => onSectionHue(s.id, Number(e.target.value))}
                 style={{ width: "100%", accentColor: accent(s.hue) }}
               />

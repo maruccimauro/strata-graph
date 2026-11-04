@@ -10,6 +10,8 @@ The **Preferences** panel has a category list on the left and the settings for t
 
 ## General
 
+**Language** sets the interface language. English is the only language today; the interface is built so more can be added without reworking it.
+
 **Canvas layout** sets how sections are arranged. **Horizontal** stacks them as rows top-to-bottom; **vertical** stacks them as columns left-to-right. The same toggle is in **View ▸ Layout**. The view re-fits when you switch, and in each orientation the section central node slides only along the stacking axis (left-right when horizontal, up-down when vertical).
 
 This category also lists how you move around the canvas: middle-click (wheel) drag to pan, drag on empty space to box-select nodes, drag from a node's edge to another node to connect them, and <kbd>Esc</kbd> or a click outside to dismiss an overlay or selection.
@@ -21,6 +23,7 @@ Display toggles for the whole graph:
 - **Hide not-generated**: hides placeholder nodes that are expected but do not exist yet, so you see only real content. Also available as the **Hide ∅** toolbar toggle.
 - **Color edges by section**: edges take the color of the target node's section. Turn it off for neutral gray edges.
 - **Show dependency edges**: shows or hides the dependency edges, to declutter a dense graph.
+- **Highlight paths on hover**: lights a node's upstream and downstream paths as you hover it. Also the **✦ Paths** toolbar toggle. See [Highlighting](/working/highlighting).
 
 ## Sections
 
