@@ -8,9 +8,14 @@ How to select nodes, move them, and pan the canvas.
 
 ## Select
 
-- **Click** a node to select it and highlight its dependencies (see [Highlighting](/working/highlighting)).
+Strata uses a primary-click model: a single click selects, a double-click opens the overlay.
+
+- **Single-click** a node to select it and highlight its dependency chain (see [Highlighting](/working/highlighting)). A single click only selects; it does not open the overlay.
+- **Single-click** an edge to select it; the selected edge glows. See [Edges](/modeling/edges).
+- **Double-click** a node or edge to open its overlay, or hold <kbd>Alt</kbd> and hover for a transient overlay. See [Overlays and actions](/working/overlays-and-actions).
 - **Box-select**: drag on empty space to draw a selection box over several nodes.
-- Click the empty canvas to clear the selection.
+- **Deselect**: click the empty canvas, or press <kbd>Esc</kbd>. <kbd>Esc</kbd> is staged, so when an overlay is open the first press closes it and the next clears the selection.
+- **Right-click** the background, a node, or an edge for its context menu. See [Context menus](/working/context-menus).
 
 Your selection survives edits: locking, changing a date, or any action that redraws the canvas keeps the group selected.
 

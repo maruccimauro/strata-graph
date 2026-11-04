@@ -20,7 +20,9 @@ On the right, a badge shows the active mode (**● Connected** or **○ Static**
 
 Below the menu bar, a toolbar repeats the most used actions:
 
-**＋ Node** · undo · redo · **⇩ PNG** · **⤢ Fit** · **⟳ Reset** · **Hide ∅** · **⚙ Preferences** · **◐ theme**.
+**＋ Node** · undo · redo · **⇩ PNG** · **⤢ Fit** · **⟳ Reset** · **✦ Paths** · **Hide ∅** · **⚙ Preferences** · **◐ theme**.
+
+**✦ Paths** and **Hide ∅** are toggles: they stay highlighted while on.
 
 ## Canvas
 
@@ -34,7 +36,11 @@ The canvas is where the graph lives:
 
 ## Overlays
 
-Hover or double-click a node to open its **overlay**: an action bar (lock, connect, comment, delete), its flags, files, section, and dates. Hover an edge to open the **edge overlay** with its dependency direction and a delete action. See [Overlays and actions](/working/overlays-and-actions).
+**Double-click** a node to open its **overlay**: an action bar (lock, connect, comment, delete), its flags, files, section, and dates. **Double-click** an edge for the **edge overlay** with its dependency direction and a delete action. A single click selects without opening an overlay; hold <kbd>Alt</kbd> and hover for a transient overlay. See [Overlays and actions](/working/overlays-and-actions).
+
+## Context menus
+
+**Right-click** anywhere for a menu scoped to what is under the pointer: the background, a node, or an edge. See [Context menus](/working/context-menus).
 
 ## Next
 

@@ -34,7 +34,7 @@ See [Importing files](/modeling/importing-files).
 
 ## The node overlay
 
-Hover or double-click a node to open its overlay. From there you can connect it, add a comment, change its section, set a due date, lock it, and (for manual nodes) delete it. See [Overlays and actions](/working/overlays-and-actions) and [Node metadata](/working/node-metadata).
+**Double-click** a node to open its overlay (or hold <kbd>Alt</kbd> and hover it for a transient one); a single click selects the node. From the overlay you can connect it, add a comment, change its section, set a due date, lock it, and (for manual nodes) delete it. See [Overlays and actions](/working/overlays-and-actions) and [Node metadata](/working/node-metadata).
 
 ## Delete a node
 

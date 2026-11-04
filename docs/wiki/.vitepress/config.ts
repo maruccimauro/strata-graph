@@ -45,6 +45,7 @@ export default defineConfig({
           { text: "Node metadata", link: "/working/node-metadata" },
           { text: "Multi-selection", link: "/working/multi-selection" },
           { text: "Overlays and actions", link: "/working/overlays-and-actions" },
+          { text: "Context menus", link: "/working/context-menus" },
           { text: "Highlighting", link: "/working/highlighting" },
           { text: "Undo and redo", link: "/working/undo-redo" },
           { text: "Themes", link: "/working/themes" },

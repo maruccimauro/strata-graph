@@ -35,7 +35,7 @@ A node with no incoming dependency is linked to its section's central node by a 
 
 ## Inspect
 
-Hover an edge to open the **edge overlay**: it names the depends-on and dependent nodes with their sections, and offers a delete action for non-branch edges. See [Overlays and actions](/working/overlays-and-actions).
+**Double-click** an edge to open the **edge overlay** (or hold <kbd>Alt</kbd> and hover it for a transient one); a single click selects the edge. The overlay names the depends-on and dependent nodes with their sections, and offers a delete action for non-branch edges. See [Overlays and actions](/working/overlays-and-actions).
 
 ## Next
 

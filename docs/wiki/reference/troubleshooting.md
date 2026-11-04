@@ -25,9 +25,9 @@ Imports must be valid `.sgm` files. An invalid or wrong-version file is rejected
 
 In Static mode, state lives in the browser's `localStorage`; clearing site data removes it. Export a [Strata Graph Model](/models-data/strata-graph-model) to keep a durable copy.
 
-## The overlay does not appear when I hover a node
+## I hover a node and no overlay appears
 
-The overlay is suppressed over a node's border, where the connection handles sit. Hover the node's interior, or double-click it. See [Overlays and actions](/working/overlays-and-actions).
+That is by design. Hovering no longer opens the overlay. **Double-click** a node or edge to open its overlay, or hold <kbd>Alt</kbd> and hover for a transient one; a single click selects the element. The separate **✦ Paths** highlight that lights a node's dependency paths is controlled by **Highlight paths on hover**. See [Overlays and actions](/working/overlays-and-actions) and [Highlighting](/working/highlighting).
 
 ## Next
 

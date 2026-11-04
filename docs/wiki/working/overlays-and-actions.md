@@ -8,7 +8,12 @@ Overlays are the floating panels that let you inspect and act on a node or an ed
 
 ## The node overlay
 
-Open it by hovering a node (after a short delay) or double-clicking it. From top to bottom:
+A single click **selects** a node; it does not open the overlay. Open the overlay in one of two ways:
+
+- **Double-click** the node. The overlay is **sticky**: it stays open until you dismiss it.
+- Hold <kbd>Alt</kbd> and **hover** the node (no click). This opens a **transient** overlay that closes the moment you leave the node or release <kbd>Alt</kbd>.
+
+From top to bottom:
 
 - An **action bar** of icon buttons, below the title: **🔒 lock/unlock**, **🔗 connect**, **🏷️ comment**, and **🗑 delete** (manual nodes only). Each button has a tooltip.
 - **Flags**: Automatic/Manual, Generated/Not-generated, Locked.
@@ -18,21 +23,18 @@ Open it by hovering a node (after a short delay) or double-clicking it. From top
 
 See [Node metadata](/working/node-metadata).
 
-## Auto-dismiss
+## Dismiss the overlay
 
-The overlay gets out of your way:
+- A **sticky** overlay closes when you press <kbd>Esc</kbd>, click empty space, click another node or edge, pan the canvas, or deselect.
+- A **transient** (<kbd>Alt</kbd> + hover) overlay closes when the pointer leaves the node or you release <kbd>Alt</kbd>.
 
-- If the pointer never enters the panel and drifts more than a short distance away, it closes.
-- Once the pointer has entered and then left, it closes.
-- Panning the canvas or pressing <kbd>Esc</kbd> also closes it.
-
-## Border-safe
-
-The overlay does **not** open while the pointer is over a node's border, where the connection handles sit. That keeps the overlay from blocking you when you start an edge from a handle.
+::: info
+<kbd>Esc</kbd> is **staged**: the first press closes the open overlay or dialog; a second press clears the current selection.
+:::
 
 ## The edge overlay
 
-Hover an edge to open its overlay. It names the **depends-on** and **dependent** nodes with their sections, and offers a delete action for non-branch edges. See [Edges](/modeling/edges).
+A single click **selects** an edge. **Double-click** it to open the edge overlay (sticky), or hold <kbd>Alt</kbd> and hover it for a transient one. It names the **depends-on** and **dependent** nodes with their sections, and offers a delete action for non-branch edges. See [Edges](/modeling/edges).
 
 ## Next
 
