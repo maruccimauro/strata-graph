@@ -68,6 +68,7 @@ export default defineConfig({
           { text: "Exporting", link: "/reference/exporting" },
           { text: "Architecture", link: "/reference/architecture" },
           { text: "Troubleshooting", link: "/reference/troubleshooting" },
+          { text: "Versioning", link: "/reference/versioning" },
           { text: "Roadmap", link: "/reference/roadmap" },
         ],
       },
