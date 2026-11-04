@@ -81,6 +81,9 @@ body {
    (crosshair) so it does not hide the point, and the shrink back is slower than
    the grow to avoid a jittery hover pulse. */
 .edge-anchor {
+  /* React Flow sets pointer-events: visibleStroke on edges, which inherits here
+     and would make only the ring outline clickable; restore the whole fill. */
+  pointer-events: all;
   cursor: crosshair;
   transform-box: fill-box;
   transform-origin: center;
