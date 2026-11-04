@@ -55,6 +55,8 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   const [retarget, setRetarget] = useState<
     { edgeId: string; movingEnd: "source" | "target"; fixedNodeId: string; source: string; target: string; x: number; y: number } | null
   >(null);
+  // List-driven retarget (N-25b): reuses ConnectPanel locked to one end.
+  const [retargetList, setRetargetList] = useState<{ edgeId: string; movingEnd: "source" | "target"; fixedNodeId: string } | null>(null);
 
   const prefs = state.prefs ?? DEFAULT_PREFS;
   const model = useMemo(() => buildRenderModel(graph, state), [graph, state]);
@@ -285,6 +287,32 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     },
     [edgeOverlay, beginRetarget],
   );
+  /** Open the list retarget panel (ConnectPanel locked to one end). */
+  const startListRetarget = useCallback(
+    (edge: { id: string; source: string; target: string }, movingEnd: "source" | "target") => {
+      if (edge.id.startsWith("branch:")) return;
+      const fixedNodeId = movingEnd === "source" ? edge.target : edge.source;
+      setOverlay(null);
+      setEdgeOverlay(null);
+      setSelectedNode(null);
+      setSelectedEdge(edge.id);
+      setRetargetList({ edgeId: edge.id, movingEnd, fixedNodeId });
+    },
+    [],
+  );
+  /** Commit the list retarget: reconnect the moving end to the picked node. */
+  const commitListRetarget = useCallback(
+    (nodeId: string) => {
+      setRetargetList((r) => {
+        if (!r) return null;
+        const newSource = r.movingEnd === "source" ? nodeId : r.fixedNodeId;
+        const newTarget = r.movingEnd === "target" ? nodeId : r.fixedNodeId;
+        if (newSource !== newTarget) onReconnectEdge(r.edgeId, newSource, newTarget);
+        return null;
+      });
+    },
+    [onReconnectEdge],
+  );
   /** Commit the picked node as the moving end and reconnect the edge. */
   const onRetargetPick = useCallback(
     (nodeId: string) => {
@@ -463,12 +491,13 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
         // overlay); then any open overlay or panel closes; then the selection clears.
         if (retarget) {
           cancelRetarget();
-        } else if (overlay || edgeOverlay || prefsOpen || pending || connectFrom) {
+        } else if (overlay || edgeOverlay || prefsOpen || pending || connectFrom || retargetList) {
           setOverlay(null);
           setEdgeOverlay(null);
           setPrefsOpen(false);
           setPending(null);
           setConnectFrom(null);
+          setRetargetList(null);
         } else {
           setSelectedNode(null);
           setSelectedEdge(null);
@@ -489,7 +518,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom, retarget, cancelRetarget]);
+  }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom, retargetList, retarget, cancelRetarget]);
 
   // ----- context menus (right-click), per the configurability policy -----
   const paneMenu = (): ContextMenuItem[] => [
@@ -645,6 +674,22 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
         />
       )}
 
+      {retargetList &&
+        (() => {
+          const fixed = model.nodes.find((n) => n.id === retargetList.fixedNodeId);
+          if (!fixed) return null;
+          return (
+            <ConnectPanel
+              fromNode={fixed}
+              nodes={model.nodes}
+              sections={model.sections}
+              lock={{ fixedLabel: fixed.label }}
+              onCreate={(targetId) => commitListRetarget(targetId)}
+              onClose={() => setRetargetList(null)}
+            />
+          );
+        })()}
+
       {edgeOverlay && (
         <Panel
           title="Dependency"
@@ -678,7 +723,10 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
                     {from.section && <span style={{ color: MUTED }}> · {from.section}</span>}
                   </div>
                   {edgeOverlay.deletable && (
-                    <button onClick={() => startMouseRetarget("source")} title="Retarget the prerequisite end: click a node to set it (Esc cancels)" style={iconBtn}>⌖</button>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      <button onClick={() => startMouseRetarget("source")} title="Retarget by pointer: click a node to set the new end (Esc cancels)" style={iconBtn}>⌖</button>
+                      <button onClick={() => startListRetarget(edgeOverlay, "source")} title="Retarget from a list" style={iconBtn}>☰</button>
+                    </div>
                   )}
                 </div>
                 <div style={{ color: "var(--down)", fontSize: ".9rem" }}>↓</div>
@@ -689,11 +737,14 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
                     {to.section && <span style={{ color: MUTED }}> · {to.section}</span>}
                   </div>
                   {edgeOverlay.deletable && (
-                    <button onClick={() => startMouseRetarget("target")} title="Retarget the dependent end: click a node to set it (Esc cancels)" style={iconBtn}>⌖</button>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      <button onClick={() => startMouseRetarget("target")} title="Retarget by pointer: click a node to set the new end (Esc cancels)" style={iconBtn}>⌖</button>
+                      <button onClick={() => startListRetarget(edgeOverlay, "target")} title="Retarget from a list" style={iconBtn}>☰</button>
+                    </div>
                   )}
                 </div>
                 {edgeOverlay.deletable ? (
-                  <div style={{ color: MUTED, fontSize: ".72rem" }}>Click ⌖ to move an end, then click the new node. Esc cancels.</div>
+                  <div style={{ color: MUTED, fontSize: ".72rem" }}>⌖ pick a node on the canvas · ☰ choose from a list.</div>
                 ) : (
                   <div style={{ color: MUTED, fontSize: ".74rem" }}>Auto branch from the section node, not deletable.</div>
                 )}

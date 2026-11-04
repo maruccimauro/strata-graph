@@ -34,7 +34,7 @@ See [Node metadata](/working/node-metadata).
 
 ## The edge overlay
 
-A single click **selects** an edge. **Double-click** it to open the edge overlay (sticky), or hold <kbd>Alt</kbd> and hover it for a transient one. It names the **depends-on** and **dependent** nodes with their sections, offers a delete action for non-branch edges, and shows a **⌖** button next to each end to **retarget** it: the overlay hides, a line follows the cursor from the fixed end, and clicking a node sets the new endpoint (<kbd>Esc</kbd> cancels and reopens the overlay). See [Edges](/modeling/edges).
+A single click **selects** an edge. **Double-click** it to open the edge overlay (sticky), or hold <kbd>Alt</kbd> and hover it for a transient one. It names the **depends-on** and **dependent** nodes with their sections, offers a delete action for non-branch edges, and shows two retarget buttons next to each end: **⌖** moves that end by pointer (the overlay hides, a line follows the cursor, and clicking a node sets the new endpoint; <kbd>Esc</kbd> cancels and reopens the overlay), and **☰** moves it by picking the new node from a list. See [Edges](/modeling/edges).
 
 ## Next
 
