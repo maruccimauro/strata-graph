@@ -3,6 +3,7 @@ import { useReactFlow, getNodesBounds, getViewportForBounds } from "@xyflow/reac
 import { toPng } from "html-to-image";
 
 import { StrataCanvas } from "./StrataCanvas";
+import type { Retarget } from "./StrataCanvas";
 import { NodeOverlay } from "./NodeOverlay";
 import { ConnectPanel, type Direction } from "./ConnectPanel";
 import { TopBar } from "./ui/TopBar";
@@ -49,6 +50,11 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+  // Edge retarget in progress (N-25): one endpoint follows the cursor while the
+  // other stays fixed. Keeps the original overlay anchor so Esc can reopen it.
+  const [retarget, setRetarget] = useState<
+    { edgeId: string; movingEnd: "source" | "target"; fixedNodeId: string; source: string; target: string; x: number; y: number } | null
+  >(null);
 
   const prefs = state.prefs ?? DEFAULT_PREFS;
   const model = useMemo(() => buildRenderModel(graph, state), [graph, state]);
@@ -255,6 +261,51 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     [commit, model],
   );
 
+  // ----- edge retarget (N-25) -----
+  /** Enter sticky mouse-retarget for one end of a given edge. The opposite end
+   *  stays fixed; any open overlay hides while a node is picked. Branch edges
+   *  are not retargetable. */
+  const beginRetarget = useCallback(
+    (edge: { id: string; source: string; target: string; x: number; y: number }, movingEnd: "source" | "target") => {
+      if (edge.id.startsWith("branch:")) return;
+      const fixedNodeId = movingEnd === "source" ? edge.target : edge.source;
+      setOverlay(null);
+      setEdgeOverlay(null);
+      setSelectedNode(null);
+      setSelectedEdge(edge.id);
+      setRetarget({ edgeId: edge.id, movingEnd, fixedNodeId, source: edge.source, target: edge.target, x: edge.x, y: edge.y });
+    },
+    [],
+  );
+  /** Start retarget from the edge overlay (uses its current anchor position). */
+  const startMouseRetarget = useCallback(
+    (movingEnd: "source" | "target") => {
+      if (!edgeOverlay || !edgeOverlay.deletable) return;
+      beginRetarget(edgeOverlay, movingEnd);
+    },
+    [edgeOverlay, beginRetarget],
+  );
+  /** Commit the picked node as the moving end and reconnect the edge. */
+  const onRetargetPick = useCallback(
+    (nodeId: string) => {
+      setRetarget((r) => {
+        if (!r) return null;
+        const newSource = r.movingEnd === "source" ? nodeId : r.fixedNodeId;
+        const newTarget = r.movingEnd === "target" ? nodeId : r.fixedNodeId;
+        if (newSource !== newTarget) onReconnectEdge(r.edgeId, newSource, newTarget);
+        return null;
+      });
+    },
+    [onReconnectEdge],
+  );
+  /** Cancel retarget: leave the edge untouched and reopen its overlay. */
+  const cancelRetarget = useCallback(() => {
+    setRetarget((r) => {
+      if (r) setEdgeOverlay({ id: r.edgeId, source: r.source, target: r.target, deletable: !r.edgeId.startsWith("branch:"), x: r.x, y: r.y });
+      return null;
+    });
+  }, []);
+
   const addEdge = useCallback(
     (edge: Omit<GraphEdge, "id">) => {
       const id = `manual:${edge.source}->${edge.target}:${edge.kind}`;
@@ -408,9 +459,11 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
         e.preventDefault();
         redo();
       } else if (e.key === "Escape") {
-        // Staged Escape: the first press closes any open overlay or panel; when
-        // nothing is open, the next press clears the current selection.
-        if (overlay || edgeOverlay || prefsOpen || pending || connectFrom) {
+        // Staged Escape: a retarget in progress is cancelled first (reopening its
+        // overlay); then any open overlay or panel closes; then the selection clears.
+        if (retarget) {
+          cancelRetarget();
+        } else if (overlay || edgeOverlay || prefsOpen || pending || connectFrom) {
           setOverlay(null);
           setEdgeOverlay(null);
           setPrefsOpen(false);
@@ -436,7 +489,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom]);
+  }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom, retarget, cancelRetarget]);
 
   // ----- context menus (right-click), per the configurability policy -----
   const paneMenu = (): ContextMenuItem[] => [
@@ -472,7 +525,14 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     const items: ContextMenuItem[] = [
       { label: "Open details", onClick: () => { setOverlay(null); setSelectedNode(null); setSelectedEdge(id); setEdgeOverlay({ id, source, target, deletable, x, y }); } },
     ];
-    if (deletable) items.push({ label: "Delete", danger: true, onClick: () => onDeleteEdge(id) });
+    if (deletable) {
+      items.push(
+        { label: "Retarget prerequisite end…", onClick: () => beginRetarget({ id, source, target, x, y }, "source") },
+        { label: "Retarget dependent end…", onClick: () => beginRetarget({ id, source, target, x, y }, "target") },
+        { label: "", onClick: () => {}, separator: true },
+        { label: "Delete", danger: true, onClick: () => onDeleteEdge(id) },
+      );
+    }
     return items;
   };
 
@@ -544,7 +604,9 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           onSelectNode={setSelectedNode}
           selectedEdge={selectedEdge}
           onSelectEdge={setSelectedEdge}
-          onReconnectEdge={onReconnectEdge}
+          retarget={retarget ? ({ edgeId: retarget.edgeId, movingEnd: retarget.movingEnd, fixedNodeId: retarget.fixedNodeId } as Retarget) : null}
+          onRetargetPick={onRetargetPick}
+          onRetargetCancel={cancelRetarget}
           onPaneContextMenu={(x, y) => setCtxMenu({ x, y, items: paneMenu() })}
           onNodeContextMenu={(node, x, y) => setCtxMenu({ x, y, items: nodeMenu(node, x, y) })}
           onEdgeContextMenu={(id, source, target, x, y) => setCtxMenu({ x, y, items: edgeMenu(id, source, target, x, y) })}
@@ -603,21 +665,37 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           {(() => {
             const from = infoOf(edgeOverlay.source);
             const to = infoOf(edgeOverlay.target);
+            // New UI strings here are hardcoded for now; migrate through t() in the i18n scaffold (same batch).
+            const label = { color: MUTED, fontSize: ".72rem", textTransform: "uppercase" as const, letterSpacing: ".04em" };
+            const row = { display: "flex", justifyContent: "space-between" as const, alignItems: "center" as const, gap: 10 };
+            const iconBtn = { border: "1px solid var(--line)", background: "transparent", color: "var(--muted)", cursor: "pointer", fontSize: ".95rem", borderRadius: 6, padding: "1px 7px", lineHeight: 1.3 };
             return (
               <div style={{ fontSize: ".82rem", display: "flex", flexDirection: "column", gap: 8 }}>
-                <div>
-                  <div style={{ color: MUTED, fontSize: ".72rem", textTransform: "uppercase", letterSpacing: ".04em" }}>Depends on</div>
-                  <b>{from.label}</b>
-                  {from.section && <span style={{ color: MUTED }}> · {from.section}</span>}
+                <div style={row}>
+                  <div>
+                    <div style={label}>Depends on</div>
+                    <b>{from.label}</b>
+                    {from.section && <span style={{ color: MUTED }}> · {from.section}</span>}
+                  </div>
+                  {edgeOverlay.deletable && (
+                    <button onClick={() => startMouseRetarget("source")} title="Retarget the prerequisite end: click a node to set it (Esc cancels)" style={iconBtn}>⌖</button>
+                  )}
                 </div>
                 <div style={{ color: "var(--down)", fontSize: ".9rem" }}>↓</div>
-                <div>
-                  <div style={{ color: MUTED, fontSize: ".72rem", textTransform: "uppercase", letterSpacing: ".04em" }}>Dependent</div>
-                  <b>{to.label}</b>
-                  {to.section && <span style={{ color: MUTED }}> · {to.section}</span>}
+                <div style={row}>
+                  <div>
+                    <div style={label}>Dependent</div>
+                    <b>{to.label}</b>
+                    {to.section && <span style={{ color: MUTED }}> · {to.section}</span>}
+                  </div>
+                  {edgeOverlay.deletable && (
+                    <button onClick={() => startMouseRetarget("target")} title="Retarget the dependent end: click a node to set it (Esc cancels)" style={iconBtn}>⌖</button>
+                  )}
                 </div>
-                {!edgeOverlay.deletable && (
-                  <div style={{ color: MUTED, fontSize: ".74rem" }}>Auto branch from the section node — not deletable.</div>
+                {edgeOverlay.deletable ? (
+                  <div style={{ color: MUTED, fontSize: ".72rem" }}>Click ⌖ to move an end, then click the new node. Esc cancels.</div>
+                ) : (
+                  <div style={{ color: MUTED, fontSize: ".74rem" }}>Auto branch from the section node, not deletable.</div>
                 )}
               </div>
             );

@@ -7,6 +7,8 @@ import {
   MarkerType,
   SelectionMode,
   ConnectionMode,
+  ViewportPortal,
+  useReactFlow,
   useNodesState,
   useEdgesState,
   type Node,
@@ -26,7 +28,16 @@ import { SectionNode } from "./nodes/SectionNode";
 import { DocNode, type Highlight } from "./nodes/DocNode";
 import { CommentNode } from "./nodes/CommentNode";
 import { FloatingEdge } from "./edges/FloatingEdge";
+import { borderPointToward } from "./edges/floating";
 import { accent, ghostCol, mutedCol, upCol, downCol } from "./theme";
+
+/** Active edge retarget: one endpoint follows the cursor while the other stays
+ *  fixed; a click on a node commits the new endpoint (see N-25 in the tracker). */
+export interface Retarget {
+  edgeId: string;
+  movingEnd: "source" | "target";
+  fixedNodeId: string;
+}
 
 const nodeTypes: NodeTypes = {
   band: BandNode,
@@ -52,14 +63,20 @@ export interface StrataCanvasProps {
   onSelectNode: (id: string | null) => void;
   selectedEdge: string | null;
   onSelectEdge: (id: string | null) => void;
-  onReconnectEdge: (edgeId: string, source: string, target: string) => void;
+  retarget: Retarget | null;
+  onRetargetPick: (nodeId: string) => void;
+  onRetargetCancel: () => void;
   onPaneContextMenu: (x: number, y: number) => void;
   onNodeContextMenu: (node: GraphNode, x: number, y: number) => void;
   onEdgeContextMenu: (id: string, source: string, target: string, x: number, y: number) => void;
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, onReconnectEdge, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
+  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, retarget, onRetargetPick, onRetargetCancel, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
+  const rf = useReactFlow();
+  // Cursor position in flow coordinates while a retarget is in progress, so the
+  // rubber-band line can follow it from the fixed endpoint.
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 
   // Transient hover highlight (N-30): a selection always wins; otherwise, when
   // the toggle is on, the hovered node/edge drives the same highlight visual.
@@ -147,7 +164,26 @@ export function StrataCanvas(props: StrataCanvasProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCloseOverlays]);
 
+  // While a retarget is active, track the cursor in flow coordinates so the
+  // rubber-band can follow it even over nodes (onPaneMouseMove would not fire
+  // there). Clear it when the retarget ends.
+  useEffect(() => {
+    if (!retarget) {
+      setCursor(null);
+      return;
+    }
+    const mm = (e: MouseEvent) => setCursor(rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }));
+    window.addEventListener("mousemove", mm);
+    return () => window.removeEventListener("mousemove", mm);
+  }, [retarget, rf]);
+
   const onNodeClick: NodeMouseHandler = (_e, node) => {
+    // While retargeting an edge, a click picks the new endpoint instead of
+    // selecting. Only document nodes are valid targets, and never the fixed end.
+    if (retarget) {
+      if (node.type === "doc" && node.id !== retarget.fixedNodeId) onRetargetPick(node.id);
+      return;
+    }
     // A single click always dismisses an open (sticky) overlay. Section bands
     // cover the canvas and never reach onPaneClick, so a click on a band acts
     // like a click on empty space: close and deselect.
@@ -287,16 +323,13 @@ export function StrataCanvas(props: StrataCanvasProps) {
         }
         onEdgeContextMenu(edge.id, edge.source, edge.target, e.clientX, e.clientY);
       }}
-      onReconnectStart={() => {
-        transientNode.current = null;
-        transientEdge.current = null;
-        onCloseOverlays();
-      }}
-      onReconnect={(oldEdge, conn) => {
-        if (!conn.source || !conn.target || conn.source === conn.target) return;
-        onReconnectEdge(oldEdge.id, conn.source, conn.target);
-      }}
       onPaneClick={() => {
+        // Clicking empty space during a retarget cancels it (restores the edge
+        // and reopens its overlay); otherwise it clears the selection.
+        if (retarget) {
+          onRetargetCancel();
+          return;
+        }
         onSelectNode(null);
         onSelectEdge(null);
         onPaneClick();
@@ -328,10 +361,27 @@ export function StrataCanvas(props: StrataCanvasProps) {
       selectionKeyCode={null}
       deleteKeyCode={null}
       proOptions={{ hideAttribution: true }}
+      style={retarget ? { cursor: "crosshair" } : undefined}
     >
       <Background gap={24} />
       <Controls />
       <MiniMap pannable zoomable />
+      {retarget &&
+        cursor &&
+        (() => {
+          const node = rf.getInternalNode(retarget.fixedNodeId);
+          if (!node) return null;
+          const p = borderPointToward(node, cursor.x, cursor.y);
+          const col = accent(210);
+          return (
+            <ViewportPortal>
+              <svg style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none" }}>
+                <line x1={p.x} y1={p.y} x2={cursor.x} y2={cursor.y} stroke={col} strokeWidth={2} strokeDasharray="5 4" />
+                <circle cx={cursor.x} cy={cursor.y} r={4} fill={col} />
+              </svg>
+            </ViewportPortal>
+          );
+        })()}
     </ReactFlow>
   );
 }
@@ -518,7 +568,7 @@ function buildEdges(
           ? { stroke: "#caa83a", strokeWidth: 1.8, strokeDasharray: "2 3", opacity: 1, filter: glowFilter("#caa83a") }
           : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
         className: e.id === selectedEdge ? "edge-selected" : undefined,
-        data: { kind: "comment" },
+        data: { kind: "comment", anchors: e.id === selectedEdge || e.id === hoverEdge },
       });
       continue;
     }
@@ -557,7 +607,7 @@ function buildEdges(
       target: e.target,
       style,
       className: e.id === selectedEdge ? "edge-selected" : undefined,
-      data: { originDot: true, kind: "dependency" },
+      data: { originDot: true, kind: "dependency", anchors: glowEdge },
       markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke },
     });
   }

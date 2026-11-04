@@ -29,9 +29,9 @@ A node with no incoming dependency is linked to its section's central node by a 
 
 ## Select, delete and reconnect
 
-- **Select**: click an edge to select it. The selected edge lights up with a soft glow and shows a small grab handle at each end. Click it again, press `Escape`, or click an empty area to deselect.
+- **Select**: click an edge to select it. The selected edge lights up with a soft glow and shows a small ring at each real endpoint, marking where it attaches and the two retarget points. Click it again, press `Escape`, or click an empty area to deselect.
 - **Delete**: with an edge selected, press `Delete` or `Backspace` to remove it. Deletes are undoable with `Ctrl+Z`. Branch edges cannot be deleted. You can also delete from the edge overlay's trash action.
-- **Reconnect (retarget)**: drag the grab handle at either end onto another node to move that end of the edge. The dependency rebinds to the new node; if the edge came from the built-in model it becomes a manual edge, so the change persists. Retargeting the only incoming dependency away from a node turns that node into a section root, so it reattaches to its section's central node with a branch edge.
+- **Reconnect (retarget)**: move one end of an edge to a different node from the **edge overlay** (double-click the edge to open it). Next to each end, the **⌖** button starts a retarget: the overlay hides, a line follows the cursor from the end that stays fixed, and clicking a node sets the new endpoint. Press `Escape` or click empty space to cancel and reopen the overlay. The same actions live in the edge's [context menu](/working/context-menus). The dependency rebinds to the new node; if the edge came from the built-in model it becomes a manual edge, so the change persists. Retargeting the only incoming dependency away from a node turns that node into a section root, so it reattaches to its section's central node with a branch edge.
 
 ## Inspect
 

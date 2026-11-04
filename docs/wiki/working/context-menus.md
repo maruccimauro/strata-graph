@@ -30,6 +30,7 @@ A section's central node shows only **Open details** and **Lock / Unlock**, sinc
 Right-click a dependency or comment edge:
 
 - **Open details** opens the edge overlay.
+- **Retarget prerequisite end** and **Retarget dependent end** start a retarget of that end: a line follows the cursor and the next node you click becomes the new endpoint (<kbd>Esc</kbd> cancels). See [Edges](/modeling/edges).
 - **Delete** (non-branch edges only).
 
 Right-clicking a **branch** edge, which links a root node to its section's central node, falls back to the background menu: branch edges are structural, so they have no actions of their own. See [Edges](/modeling/edges).
