@@ -10,7 +10,7 @@ A tour of the menu bar, the quick toolbar, the canvas and the overlays.
 
 At the top are three dropdown menus:
 
-- **File**: Add node, Import model (.sgm), Export model (.sgm), Export PNG.
+- **File**: Add node, New from built-in, Load demo, Import model (.sgm), Export model (.sgm), Export PNG.
 - **Edit**: Undo, Redo, Preferences.
 - **View**: Fit to screen, Reset layout, the preference toggles, Toggle theme.
 
@@ -20,7 +20,7 @@ On the right, a badge shows the active mode (**● Connected** or **○ Static**
 
 Below the menu bar, a toolbar repeats the most used actions:
 
-**＋ Node** · undo · redo · **⇩ PNG** · **⤢ Fit** · **⟳ Reset** · **✦ Paths** · **Hide ∅** · **⚙ Preferences** · **◐ theme**.
+**＋ Node** · **⊕ New** · undo · redo · **⇩ PNG** · **⤢ Fit** · **⟳ Reset** · **✦ Paths** · **Hide ∅** · **⚙ Preferences** · **◐ theme**.
 
 **✦ Paths** and **Hide ∅** are toggles: they stay highlighted while on.
 

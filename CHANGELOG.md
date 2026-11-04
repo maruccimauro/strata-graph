@@ -19,6 +19,12 @@ history; the project carried no tagged releases before this file was introduced.
 
 ### Added
 
+- Built-in model picker (File ▸ New from built-in, the ⊕ New quick-bar button,
+  and the canvas context menu) to start a fresh graph from a registered built-in.
+- Second built-in model, a domain-neutral task board, alongside SDLC.
+- Discard confirmation before replacing a graph that has unsaved work.
+- File ▸ Load demo, and a first-run prompt offering the demo over a clean start;
+  the chosen startup model is remembered across reloads.
 - `CHANGELOG.md` with the release history reconstructed from the git log into six
   themed versions.
 - Six retroactive annotated tags, `v0.1.0` through `v0.6.0`, on their closing
