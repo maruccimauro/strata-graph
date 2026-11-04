@@ -6,6 +6,10 @@ name: Release
 #
 # The workflow_dispatch entry builds and releases an existing tag on demand; it
 # is used to backfill releases for tags created before this workflow existed.
+#
+# Tooling (the notes script and the changelog) is read from the default branch,
+# while the app is built from the tag's own code. This keeps backfill working for
+# tags whose commit predates the changelog and the release script.
 on:
   push:
     tags:
@@ -28,25 +32,34 @@ jobs:
         id: tag
         run: echo "name=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
 
+      # Tooling (release script + changelog) from the trunk, not the tag.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      # The released code at the tag, built into its own directory.
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.tag.outputs.name }}
+          path: app
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
-      - run: npm ci
+          cache-dependency-path: app/package-lock.json
 
       - name: Build the offline single-file app
-        run: npm run build
+        working-directory: app
+        run: |
+          npm ci
+          npm run build
 
       - name: Extract release notes from the changelog
         run: node scripts/changelog-release-notes.mjs "${{ steps.tag.outputs.name }}" > RELEASE_NOTES.md
 
       - name: Package the offline build
-        run: cp dist/index.html "strata-${{ steps.tag.outputs.name }}.html"
+        run: cp app/dist/index.html "strata-${{ steps.tag.outputs.name }}.html"
 
       - name: Create the GitHub Release
         env:
