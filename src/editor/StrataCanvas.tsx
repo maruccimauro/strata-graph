@@ -65,13 +65,18 @@ export function StrataCanvas(props: StrataCanvasProps) {
   // the toggle is on, the hovered node/edge drives the same highlight visual.
   const [hoverNode, setHoverNode] = useState<string | null>(null);
   const [hoverEdge, setHoverEdge] = useState<string | null>(null);
-  const hlNode = selected ?? (prefs.hoverHighlight ? hoverNode : null);
-  const hlEdge = selectedEdge ?? (prefs.hoverHighlight ? hoverEdge : null);
+  const hoverN = prefs.hoverHighlight ? hoverNode : null;
+  const hoverE = prefs.hoverHighlight ? hoverEdge : null;
 
   const nodeIndex = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model]);
-  const { rfNodes, rfEdges } = useMemo(
-    () => build(model, prefs, hlNode, hlEdge, selectedEdge),
-    [model, prefs, hlNode, hlEdge, selectedEdge, themeKey],
+  // Layout + adjacency, independent of selection and hover.
+  const info = useMemo(() => graphInfo(model, prefs.layout ?? "horizontal"), [model, prefs.layout]);
+  // Nodes depend only on the real selection, never on hover, so hovering a node
+  // rebuilds edges only (no node flicker) and highlights edges, not the node.
+  const rfNodes = useMemo(() => buildNodes(info, selected), [info, selected, themeKey]);
+  const rfEdges = useMemo(
+    () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE),
+    [info, prefs, selected, hoverN, selectedEdge, hoverE, themeKey],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes);
@@ -113,6 +118,11 @@ export function StrataCanvas(props: StrataCanvasProps) {
       if (e.key === "Alt") {
         altDown.current = true;
         e.preventDefault();
+      } else if (e.key === "Escape") {
+        // Clear the hover highlight too, so pressing Escape over a selected edge
+        // visibly removes its glow instead of leaving the hover glow behind.
+        setHoverNode(null);
+        setHoverEdge(null);
       }
     };
     const ku = (e: KeyboardEvent) => {
@@ -347,14 +357,14 @@ function reach(map: Map<string, string[]>, start: string): Set<string> {
   return out;
 }
 
-function build(model: GraphModel, prefs: Prefs, selected: string | null, highlightEdge: string | null, selectedEdge: string | null): { rfNodes: Node[]; rfEdges: Edge[] } {
-  const orientation = prefs.layout ?? "horizontal";
+/** Layout, section hues, adjacency and section counts — everything derived from
+ *  the model (and orientation) alone, independent of selection and hover. */
+function graphInfo(model: GraphModel, orientation: "horizontal" | "vertical") {
   const laid = applyDefaultLayout(model, orientation);
   const sectionHue = new Map(laid.sections.map((s) => [s.id, s.hue]));
   const bands = computeBands(laid, orientation);
   const byId = new Map(laid.nodes.map((n) => [n.id, n]));
 
-  // adjacency over dependency + branch edges (for highlight)
   const up = new Map<string, string[]>();
   const down = new Map<string, string[]>();
   const push = (m: Map<string, string[]>, k: string, v: string) => {
@@ -368,7 +378,6 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, highlig
       push(up, e.target, e.source);
     }
 
-  // counts for section centrals
   const auto = new Map<string, { gen: number; total: number }>();
   const manual = new Map<string, number>();
   for (const n of laid.nodes) {
@@ -384,6 +393,34 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, highlig
     auto.set(n.sectionId, a);
   }
 
+  const incoming = new Set(laid.edges.filter((e) => e.kind === "dependency").map((e) => e.target));
+  return { laid, sectionHue, bands, byId, up, down, auto, manual, incoming };
+}
+
+type GraphInfo = ReturnType<typeof graphInfo>;
+
+/** Direction of an edge relative to a focus node: "up" when it lies on a path
+ *  reaching the node (a prerequisite), "down" when it lies on a path leaving it. */
+function edgeDir(
+  e: { source: string; target: string },
+  node: string | null,
+  anc: Set<string>,
+  desc: Set<string>,
+): "up" | "down" | "none" {
+  if (!node) return "none";
+  const toN = e.target === node || anc.has(e.target);
+  const fromAnc = e.source === node || anc.has(e.source);
+  if (toN && fromAnc) return "up";
+  const fromN = e.source === node || desc.has(e.source);
+  const toDesc = e.target === node || desc.has(e.target);
+  if (fromN && toDesc) return "down";
+  return "none";
+}
+
+/** Nodes depend only on the real selection: a selected node dims the unrelated
+ *  nodes and marks its own chain. Hover never affects nodes. */
+function buildNodes(info: GraphInfo, selected: string | null): Node[] {
+  const { laid, sectionHue, bands, up, down, auto, manual } = info;
   const anc = selected ? reach(up, selected) : new Set<string>();
   const desc = selected ? reach(down, selected) : new Set<string>();
   const hlOf = (id: string): Highlight => {
@@ -446,26 +483,32 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, highlig
       });
     }
   }
+  return rfNodes;
+}
 
-  // edges
-  const incoming = new Set(laid.edges.filter((e) => e.kind === "dependency").map((e) => e.target));
+/** Edges reflect the selection chain (a strong stroke over the dimmed rest) and
+ *  the hover chain (lighting the hovered node's up/down paths end to end without
+ *  dimming anything), plus a direct glow on the selected or hovered edge. */
+function buildEdges(
+  info: GraphInfo,
+  prefs: Prefs,
+  selected: string | null,
+  hoverNode: string | null,
+  selectedEdge: string | null,
+  hoverEdge: string | null,
+): Edge[] {
+  const { laid, sectionHue, byId, up, down, incoming } = info;
+  const selAnc = selected ? reach(up, selected) : new Set<string>();
+  const selDesc = selected ? reach(down, selected) : new Set<string>();
+  const hovAnc = hoverNode ? reach(up, hoverNode) : new Set<string>();
+  const hovDesc = hoverNode ? reach(down, hoverNode) : new Set<string>();
+  const dimmed = (id: string): boolean =>
+    !!selected && id !== selected && !selAnc.has(id) && !selDesc.has(id);
+
   const rfEdges: Edge[] = [];
-  const edgeHL = (e: { source: string; target: string }): "up" | "down" | "none" => {
-    if (!selected) return "none";
-    const toSel = e.target === selected || anc.has(e.target);
-    const fromAnc = e.source === selected || anc.has(e.source);
-    if (toSel && fromAnc) return "up";
-    const fromSel = e.source === selected || desc.has(e.source);
-    const toDesc = e.target === selected || desc.has(e.target);
-    if (fromSel && toDesc) return "down";
-    return "none";
-  };
-
   for (const e of laid.edges) {
     if (e.kind === "comment") {
-      // glow on hover or selection; the reconnect-anchor class only on selection
-      const glow = e.id === highlightEdge;
-      const sel = e.id === selectedEdge;
+      const glow = e.id === selectedEdge || e.id === hoverEdge;
       rfEdges.push({
         id: e.id,
         type: "floating",
@@ -474,7 +517,7 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, highlig
         style: glow
           ? { stroke: "#caa83a", strokeWidth: 1.8, strokeDasharray: "2 3", opacity: 1, filter: glowFilter("#caa83a") }
           : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
-        className: sel ? "edge-selected" : undefined,
+        className: e.id === selectedEdge ? "edge-selected" : undefined,
         data: { kind: "comment" },
       });
       continue;
@@ -485,24 +528,26 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, highlig
     const ghost = src?.status === "missing" || tgt?.status === "missing";
     const hue = tgt?.sectionId ? (sectionHue.get(tgt.sectionId) ?? 210) : 210;
     const baseColor = ghost ? ghostCol() : prefs.edgeColor === "neutral" ? mutedCol() : accent(hue);
-    const hl = edgeHL(e);
-    const base =
-      hl === "up"
-        ? { stroke: upCol(), strokeWidth: 2.6, opacity: 1 }
-        : hl === "down"
-          ? { stroke: downCol(), strokeWidth: 2.6, opacity: 1, strokeDasharray: "6 4" }
-          : {
-              stroke: baseColor,
-              strokeWidth: 1.6,
-              strokeDasharray: ghost ? "5 4" : undefined,
-              opacity: selected ? 0.07 : ghost ? 0.5 : 0.55,
-            };
-    // A highlighted edge (hovered or selected) keeps its weight but gains a glow
-    // in its own effective color, so it reads as active without a heavy stroke.
-    const style =
-      e.id === highlightEdge
-        ? { ...base, strokeWidth: Math.max(base.strokeWidth, 2), opacity: 1, filter: glowFilter(base.stroke) }
-        : base;
+    const selHL = edgeDir(e, selected, selAnc, selDesc);
+    const hovHL = edgeDir(e, hoverNode, hovAnc, hovDesc);
+    let styleBase: { stroke: string; strokeWidth: number; opacity: number; strokeDasharray?: string };
+    if (selHL === "up") styleBase = { stroke: upCol(), strokeWidth: 2.6, opacity: 1 };
+    else if (selHL === "down") styleBase = { stroke: downCol(), strokeWidth: 2.6, opacity: 1, strokeDasharray: "6 4" };
+    else if (hovHL === "up") styleBase = { stroke: upCol(), strokeWidth: 2.2, opacity: 1 };
+    else if (hovHL === "down") styleBase = { stroke: downCol(), strokeWidth: 2.2, opacity: 1, strokeDasharray: "6 4" };
+    else
+      styleBase = {
+        stroke: baseColor,
+        strokeWidth: 1.6,
+        strokeDasharray: ghost ? "5 4" : undefined,
+        opacity: selected ? 0.07 : ghost ? 0.5 : 0.55,
+      };
+    // The hovered or selected edge itself keeps its weight but gains a glow in
+    // its own effective color.
+    const glowEdge = e.id === selectedEdge || e.id === hoverEdge;
+    const style = glowEdge
+      ? { ...styleBase, strokeWidth: Math.max(styleBase.strokeWidth, 2), opacity: 1, filter: glowFilter(styleBase.stroke) }
+      : styleBase;
     rfEdges.push({
       id: e.id,
       type: "floating",
@@ -511,11 +556,10 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, highlig
       style,
       className: e.id === selectedEdge ? "edge-selected" : undefined,
       data: { originDot: true, kind: "dependency" },
-      markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke as string },
+      markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke },
     });
   }
 
-  // branch edges from section central to root docs
   for (const n of laid.nodes) {
     if (n.kind !== "doc" || incoming.has(n.id)) continue;
     if (!n.sectionId) continue;
@@ -529,5 +573,5 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, highlig
     });
   }
 
-  return { rfNodes, rfEdges };
+  return rfEdges;
 }
