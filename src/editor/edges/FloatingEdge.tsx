@@ -47,7 +47,7 @@ export function FloatingEdge({ id, source, target, markerEnd, style, data }: Edg
     d?.onAnchorGrab?.(id, source, target, end, e.clientX, e.clientY);
   };
   const anchorProps = (end: "source" | "target") => ({
-    r: 4.5,
+    r: 5,
     fill: "var(--panel)",
     stroke,
     strokeWidth: 1.6,

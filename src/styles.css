@@ -76,16 +76,19 @@ body {
 .react-flow__pane.dragging {
   cursor: grabbing;
 }
-/* edge endpoint retarget handles: grow a little on hover so the double-click
-   that starts a retarget is easy to land */
+/* edge endpoint retarget handles: grow on hover so the double-click that starts
+   a retarget is easy to land. The cursor matches a node connection handle
+   (crosshair) so it does not hide the point, and the shrink back is slower than
+   the grow to avoid a jittery hover pulse. */
 .edge-anchor {
-  cursor: pointer;
+  cursor: crosshair;
   transform-box: fill-box;
   transform-origin: center;
-  transition: transform 0.1s ease;
+  transition: transform 0.45s ease;
 }
 .edge-anchor:hover {
-  transform: scale(1.5);
+  transform: scale(1.4);
+  transition: transform 0.1s ease;
 }
 /* the edge whose end is being retargeted blinks to show it is the one moving */
 @keyframes strata-edge-blink {
