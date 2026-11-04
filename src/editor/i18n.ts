@@ -20,6 +20,8 @@ const en: Dict = {
   "menu.edit": "Edit",
   "menu.view": "View",
   "menu.file.add": "Add node…",
+  "menu.file.new": "New from built-in…",
+  "menu.file.demo": "Load demo",
   "menu.file.import": "Import model (.sgm)…",
   "menu.file.export": "Export model (.sgm)…",
   "menu.file.png": "Export PNG…",
@@ -158,7 +160,17 @@ const en: Dict = {
   "ctx.manageEdges": "Manage connections…",
   // shared
   "common.cancel": "Cancel",
+  "common.confirm": "Confirm",
   "common.delete": "Delete",
+  "newModel.title": "New from built-in",
+  "newModel.subtitle": "Start a fresh graph from a built-in Strata Graph Model.",
+  "newModel.replaceTitle": "Replace current graph?",
+  "newModel.replaceBody": "This starts a new graph and discards the unsaved work in the current one. Export it as .sgm first if you want to keep it.",
+  "newModel.replace": "Discard and continue",
+  "ctx.newModel": "New from built-in…",
+  "quickbar.new": "New",
+  "tip.new": "Start a new graph from a built-in model",
+  "tip.newConnected": "Available in static mode; connected mode follows the scanned project",
 };
 
 const dicts: Record<Lang, Dict> = { en };

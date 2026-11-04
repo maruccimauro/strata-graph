@@ -7,10 +7,13 @@ import type { Retarget } from "./StrataCanvas";
 import { NodeOverlay } from "./NodeOverlay";
 import { NodeEdgesPanel } from "./NodeEdgesPanel";
 import { ConnectPanel, type Direction } from "./ConnectPanel";
+import { NewModelPanel } from "./NewModelPanel";
 import { TopBar } from "./ui/TopBar";
 import { ContextMenu, type ContextMenuItem } from "./ui/ContextMenu";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
+import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
 import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs } from "./api";
 import { t, setLang } from "./i18n";
@@ -53,6 +56,10 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+  // Built-in model picker (New from built-in) and the discard confirmation that
+  // guards replacing a graph that has unsaved work.
+  const [newModelOpen, setNewModelOpen] = useState(false);
+  const [pendingLoad, setPendingLoad] = useState<GraphModel | null>(null);
   // Edge retarget in progress (N-25): one endpoint follows the cursor while the
   // other stays fixed. Keeps the original overlay anchor so Esc can reopen it.
   const [retarget, setRetarget] = useState<
@@ -442,6 +449,41 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     input.click();
   }, [onLoadModel]);
 
+  /** True when the current graph holds unsaved user work (manual nodes/edges,
+   *  moved positions, overrides), so replacing it would lose something. */
+  const hasWork = useCallback((s: ViewerState): boolean => {
+    return Boolean(
+      s.manualNodes?.length ||
+        s.manualEdges?.length ||
+        s.removedEdges?.length ||
+        (s.pos && Object.keys(s.pos).length) ||
+        (s.sectionOverrides && Object.keys(s.sectionOverrides).length) ||
+        (s.sectionHues && Object.keys(s.sectionHues).length) ||
+        (s.nodeMeta && Object.keys(s.nodeMeta).length),
+    );
+  }, []);
+
+  /** Load a model as the current graph, confirming first if there is work to lose. */
+  const requestLoad = useCallback(
+    (next: GraphModel) => {
+      if (!onLoadModel) return;
+      setNewModelOpen(false);
+      if (hasWork(state)) setPendingLoad(next);
+      else onLoadModel(next);
+    },
+    [onLoadModel, hasWork, state],
+  );
+
+  const pickBuiltIn = useCallback(
+    (builtInId: string) => {
+      const bi = getBuiltIn(builtInId);
+      if (bi) requestLoad(bi.build());
+    },
+    [requestLoad],
+  );
+
+  const loadDemo = useCallback(() => requestLoad(buildDemoModel()), [requestLoad]);
+
   const onExportPng = useCallback(() => {
     const el = document.querySelector(".react-flow__viewport") as HTMLElement | null;
     if (!el) return;
@@ -536,6 +578,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   // ----- context menus (right-click), per the configurability policy -----
   const paneMenu = (): ContextMenuItem[] => [
     { label: t("ctx.addNode"), onClick: () => void onAddNode() },
+    ...(!connected && onLoadModel ? [{ label: t("ctx.newModel"), onClick: () => setNewModelOpen(true) }] : []),
     { label: t("menu.view.fit"), onClick: onFit },
     { label: t("menu.view.reset"), onClick: onResetLayout },
     { label: "", onClick: () => {}, separator: true },
@@ -594,6 +637,8 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
         canUndo={undoStack.length > 0}
         canRedo={redoStack.length > 0}
         onAddNode={() => void onAddNode()}
+        onNewFromBuiltIn={() => setNewModelOpen(true)}
+        onLoadDemo={loadDemo}
         onExportPng={onExportPng}
         onExportSgm={onExportSgm}
         onImportSgm={onLoadModel ? onImportSgm : undefined}
@@ -701,6 +746,19 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           sections={model.sections}
           onCreate={createConnection}
           onClose={() => setConnectFrom(null)}
+        />
+      )}
+
+      {newModelOpen && <NewModelPanel onPick={pickBuiltIn} onClose={() => setNewModelOpen(false)} />}
+
+      {pendingLoad && (
+        <ConfirmDialog
+          title={t("newModel.replaceTitle")}
+          message={t("newModel.replaceBody")}
+          confirmLabel={t("newModel.replace")}
+          danger
+          onConfirm={() => { onLoadModel?.(pendingLoad); setPendingLoad(null); }}
+          onCancel={() => setPendingLoad(null)}
         />
       )}
 

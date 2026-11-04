@@ -1,29 +1,32 @@
 import { useState, type ReactNode, type CSSProperties, type Ref } from "react";
 import { PANEL, INK, MUTED } from "../theme";
 
-/** Shared button. `variant`: default | primary | ghost. */
+/** Shared button. `variant`: default | primary | ghost | danger. */
 export function Button({
   children,
   onClick,
   title,
   variant = "default",
   active,
+  disabled,
   style,
 }: {
   children: ReactNode;
   onClick?: () => void;
   title?: string;
-  variant?: "default" | "primary" | "ghost";
+  variant?: "default" | "primary" | "ghost" | "danger";
   active?: boolean;
+  disabled?: boolean;
   style?: CSSProperties;
 }) {
   const base: CSSProperties = {
     font: "inherit",
     fontSize: ".82rem",
-    cursor: "pointer",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.5 : 1,
     border: "1px solid var(--line)",
-    background: variant === "primary" ? "var(--accent, #0a7d7d)" : variant === "ghost" ? "transparent" : PANEL,
-    color: variant === "primary" ? "#fff" : INK,
+    background: variant === "primary" ? "var(--accent, #0a7d7d)" : variant === "danger" ? "#c0392b" : variant === "ghost" ? "transparent" : PANEL,
+    color: variant === "primary" || variant === "danger" ? "#fff" : INK,
     borderColor: variant === "ghost" ? "transparent" : active ? "var(--accent, #0a7d7d)" : "var(--line)",
     borderRadius: 8,
     padding: "5px 10px",
@@ -34,7 +37,7 @@ export function Button({
     ...style,
   };
   return (
-    <button title={title} onClick={onClick} style={base}>
+    <button title={title} onClick={onClick} disabled={disabled} style={base}>
       {children}
     </button>
   );

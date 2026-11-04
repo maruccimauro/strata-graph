@@ -6,6 +6,8 @@ import type { Prefs, Mode } from "../api";
 
 export interface TopBarActions {
   onAddNode: () => void;
+  onNewFromBuiltIn: () => void;
+  onLoadDemo: () => void;
   onExportPng: () => void;
   onExportSgm: () => void;
   onImportSgm?: () => void;
@@ -29,10 +31,11 @@ export interface TopBarProps extends TopBarActions {
   sections: number;
 }
 
-function MenuItem({ label, onClick, shortcut, disabled }: { label: string; onClick: () => void; shortcut?: string; disabled?: boolean }) {
+function MenuItem({ label, onClick, shortcut, disabled, title }: { label: string; onClick: () => void; shortcut?: string; disabled?: boolean; title?: string }) {
   return (
     <button
       disabled={disabled}
+      title={title}
       onClick={onClick}
       style={{
         display: "flex",
@@ -116,6 +119,8 @@ export function TopBar(p: TopBarProps) {
         <strong style={{ fontSize: ".95rem", margin: "0 8px 0 4px" }}>Strata</strong>
         <Menu label={t("menu.file")} open={menu === "file"} onToggle={() => toggle("file")}>
           <MenuItem label={t("menu.file.add")} shortcut="N" onClick={() => { close(); p.onAddNode(); }} />
+          <MenuItem label={t("menu.file.new")} disabled={connected} title={connected ? t("tip.newConnected") : undefined} onClick={() => { close(); p.onNewFromBuiltIn(); }} />
+          <MenuItem label={t("menu.file.demo")} disabled={connected} title={connected ? t("tip.newConnected") : undefined} onClick={() => { close(); p.onLoadDemo(); }} />
           {p.onImportSgm && <MenuItem label={t("menu.file.import")} onClick={() => { close(); p.onImportSgm!(); }} />}
           <MenuItem label={t("menu.file.export")} onClick={() => { close(); p.onExportSgm(); }} />
           <MenuItem label={t("menu.file.png")} onClick={() => { close(); p.onExportPng(); }} />
@@ -154,6 +159,7 @@ export function TopBar(p: TopBarProps) {
       {/* quick toolbar */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderTop: "1px solid var(--line)" }}>
         <Button onClick={p.onAddNode} variant="primary">＋ {t("action.node")}</Button>
+        <Button onClick={p.onNewFromBuiltIn} disabled={connected} title={connected ? t("tip.newConnected") : t("tip.new")}>⊕ {t("quickbar.new")}</Button>
         <Button onClick={p.onUndo} title={t("tip.undo")} style={p.canUndo ? undefined : { opacity: 0.5 }}>↶</Button>
         <Button onClick={p.onRedo} title={t("tip.redo")} style={p.canRedo ? undefined : { opacity: 0.5 }}>↷</Button>
         <span style={{ width: 1, height: 20, background: "var(--line)", margin: "0 3px" }} />
