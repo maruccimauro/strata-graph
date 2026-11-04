@@ -76,3 +76,27 @@ body {
 .react-flow__pane.dragging {
   cursor: grabbing;
 }
+/* edge endpoint retarget handles: grow a little on hover so the double-click
+   that starts a retarget is easy to land */
+.edge-anchor {
+  cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.1s ease;
+}
+.edge-anchor:hover {
+  transform: scale(1.5);
+}
+/* the edge whose end is being retargeted blinks to show it is the one moving */
+@keyframes strata-edge-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+.react-flow__edge.edge-retargeting .react-flow__edge-path {
+  animation: strata-edge-blink 0.8s ease-in-out infinite;
+}

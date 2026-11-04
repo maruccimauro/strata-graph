@@ -93,8 +93,8 @@ export function StrataCanvas(props: StrataCanvasProps) {
   // rebuilds edges only (no node flicker) and highlights edges, not the node.
   const rfNodes = useMemo(() => buildNodes(info, selected), [info, selected, themeKey]);
   const rfEdges = useMemo(
-    () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget),
-    [info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, themeKey],
+    () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget?.edgeId ?? null),
+    [info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget, themeKey],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes);
@@ -548,8 +548,17 @@ function buildEdges(
   selectedEdge: string | null,
   hoverEdge: string | null,
   onAnchorGrab: (id: string, source: string, target: string, end: "source" | "target", x: number, y: number) => void,
+  retargetingId: string | null,
 ): Edge[] {
   const { laid, sectionHue, byId, up, down, incoming } = info;
+  // class for an edge: selected (glow marker) and/or retargeting (blinks while
+  // one of its ends is being moved).
+  const edgeClass = (id: string): string | undefined => {
+    const c: string[] = [];
+    if (id === selectedEdge) c.push("edge-selected");
+    if (id === retargetingId) c.push("edge-retargeting");
+    return c.length ? c.join(" ") : undefined;
+  };
   const selAnc = selected ? reach(up, selected) : new Set<string>();
   const selDesc = selected ? reach(down, selected) : new Set<string>();
   const hovAnc = hoverNode ? reach(up, hoverNode) : new Set<string>();
@@ -569,7 +578,7 @@ function buildEdges(
         style: glow
           ? { stroke: "#caa83a", strokeWidth: 1.8, strokeDasharray: "2 3", opacity: 1, filter: glowFilter("#caa83a") }
           : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
-        className: e.id === selectedEdge ? "edge-selected" : undefined,
+        className: edgeClass(e.id),
         data: { kind: "comment", anchors: e.id === selectedEdge || e.id === hoverEdge, onAnchorGrab },
       });
       continue;
@@ -608,7 +617,7 @@ function buildEdges(
       source: e.source,
       target: e.target,
       style,
-      className: e.id === selectedEdge ? "edge-selected" : undefined,
+      className: edgeClass(e.id),
       data: { originDot: true, kind: "dependency", anchors: glowEdge, onAnchorGrab },
       markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke },
     });

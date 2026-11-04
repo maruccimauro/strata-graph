@@ -33,8 +33,9 @@ export function FloatingEdge({ id, source, target, markerEnd, style, data }: Edg
   const opacity = (style?.opacity as number | undefined) ?? 1;
 
   // Pull each anchor back along the edge so the ring does not cover the origin
-  // dot or the arrowhead, keeping the direction readable. Clicking an anchor
-  // starts a retarget of that end (the line then follows the cursor).
+  // dot or the arrowhead, keeping the direction readable. Double-clicking an
+  // anchor starts a retarget of that end (the line then follows the cursor),
+  // as a shortcut past the overlay; the anchor grows on hover to ease the click.
   const dx = tx - sx;
   const dy = ty - sy;
   const len = Math.hypot(dx, dy) || 1;
@@ -50,9 +51,8 @@ export function FloatingEdge({ id, source, target, markerEnd, style, data }: Edg
     fill: "var(--panel)",
     stroke,
     strokeWidth: 1.6,
-    style: { cursor: "pointer" as const },
-    onClick: (e: ReactMouseEvent) => grab(end, e),
-    onPointerDown: (e: ReactMouseEvent) => e.stopPropagation(),
+    className: "edge-anchor",
+    onDoubleClick: (e: ReactMouseEvent) => grab(end, e),
   });
   return (
     <>
