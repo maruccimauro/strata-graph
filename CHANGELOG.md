@@ -17,6 +17,8 @@ history; the project carried no tagged releases before this file was introduced.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-04
+
 ### Added
 
 - GitHub Release workflow: pushing a version tag builds the offline single-file
@@ -158,7 +160,8 @@ history; the project carried no tagged releases before this file was introduced.
   and undo/redo.
 - Initial project wiki and backlog.
 
-[Unreleased]: https://github.com/maruccimauro/strata-graph/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/maruccimauro/strata-graph/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/maruccimauro/strata-graph/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/maruccimauro/strata-graph/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/maruccimauro/strata-graph/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/maruccimauro/strata-graph/compare/v0.3.0...v0.4.0
