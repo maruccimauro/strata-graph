@@ -34,13 +34,21 @@ than it understands, rather than misreading it.
 
 ## Release process
 
-Versioning happens **in the same batch** as the work, never deferred:
+Versioning runs at two different rhythms, and they are not the same thing.
 
-1. While a batch is in progress, its changes are listed under `## [Unreleased]`
-   in `CHANGELOG.md` (sections Added, Changed, Fixed, Removed).
-2. When the batch releases a version, that block moves to
-   `## [X.Y.Z] - YYYY-MM-DD`, `version` in `package.json` is bumped, and an
-   annotated tag `vX.Y.Z` is created on the merge commit.
+**The changelog is updated in every batch.** When a batch of work is merged, its
+changes are listed under `## [Unreleased]` in `CHANGELOG.md` (sections Added,
+Changed, Fixed, Removed). An entry says what you can now do and why it matters,
+not just the name of the feature.
+
+**A version is cut at a milestone, not once per batch.** `[Unreleased]` collects
+several batches. A version is cut when what has accumulated is worth releasing, a
+coherent block of features or a point you want to be able to refer back to, so the
+numbers track releases rather than individual commits. Cutting a version means:
+
+1. Move the `[Unreleased]` block to `## [X.Y.Z] - YYYY-MM-DD`.
+2. Bump `version` in `package.json`.
+3. Create an annotated tag on the closing commit.
 
 ```sh
 git tag -a v0.7.0 -m "Short summary of the release"
@@ -48,9 +56,9 @@ git push origin v0.7.0
 ```
 
 ::: tip
-A batch without its changelog entry (and, when it releases, its version bump and
-tag) is not finished, the same way a feature without its wiki page is not
-finished.
+A batch without its changelog entry is not finished, the same way a feature
+without its wiki page is not finished. Cutting the version itself is a separate,
+milestone-driven step.
 :::
 
 ## The changelog
