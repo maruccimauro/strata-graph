@@ -6,6 +6,7 @@ import { StrataCanvas } from "./StrataCanvas";
 import { NodeOverlay } from "./NodeOverlay";
 import { ConnectPanel, type Direction } from "./ConnectPanel";
 import { TopBar } from "./ui/TopBar";
+import { ContextMenu, type ContextMenuItem } from "./ui/ContextMenu";
 import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { buildRenderModel } from "./model";
@@ -32,7 +33,9 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
 
   const [state, setState] = useState<ViewerState>(() => ({
     ...boot.state,
-    prefs: boot.state.prefs ?? DEFAULT_PREFS,
+    // merge defaults so prefs added after a state was saved (e.g. hoverHighlight)
+    // take their default instead of coming back undefined.
+    prefs: { ...DEFAULT_PREFS, ...boot.state.prefs },
   }));
   const [undoStack, setUndoStack] = useState<ViewerState[]>([]);
   const [redoStack, setRedoStack] = useState<ViewerState[]>([]);
@@ -45,6 +48,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
 
   const prefs = state.prefs ?? DEFAULT_PREFS;
   const model = useMemo(() => buildRenderModel(graph, state), [graph, state]);
@@ -434,6 +438,44 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom]);
 
+  // ----- context menus (right-click), per the configurability policy -----
+  const paneMenu = (): ContextMenuItem[] => [
+    { label: "Add node", onClick: () => void onAddNode() },
+    { label: "Fit to screen", onClick: onFit },
+    { label: "Reset layout", onClick: onResetLayout },
+    { label: "", onClick: () => {}, separator: true },
+    { label: "Highlight paths on hover", checked: prefs.hoverHighlight, onClick: () => setPrefs({ hoverHighlight: !prefs.hoverHighlight }) },
+    { label: "Show dependency edges", checked: prefs.showDeps, onClick: () => setPrefs({ showDeps: !prefs.showDeps }) },
+    { label: "Hide not-generated", checked: prefs.hideMissing, onClick: () => setPrefs({ hideMissing: !prefs.hideMissing }) },
+    { label: "", onClick: () => {}, separator: true },
+    { label: "Toggle theme", onClick: toggleTheme },
+    { label: "Preferences…", onClick: () => setPrefsOpen(true) },
+  ];
+  const nodeMenu = (node: GraphNode, x: number, y: number): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [
+      { label: "Open details", onClick: () => { setEdgeOverlay(null); setSelectedEdge(null); setSelectedNode(node.id); setOverlay({ node, x, y }); } },
+      { label: node.locked ? "Unlock" : "Lock", onClick: () => onSetNodeMeta(node.id, { locked: !node.locked }) },
+    ];
+    if (node.kind !== "section") {
+      items.push(
+        { label: "Connect…", onClick: () => { setOverlay(null); setConnectFrom(node); } },
+        { label: "Add comment", onClick: () => onAddComment(node.id) },
+      );
+      if (node.origin === "manual") {
+        items.push({ label: "", onClick: () => {}, separator: true }, { label: "Delete", danger: true, onClick: () => onDeleteNode(node.id) });
+      }
+    }
+    return items;
+  };
+  const edgeMenu = (id: string, source: string, target: string, x: number, y: number): ContextMenuItem[] => {
+    const deletable = !id.startsWith("branch:");
+    const items: ContextMenuItem[] = [
+      { label: "Open details", onClick: () => { setOverlay(null); setSelectedNode(null); setSelectedEdge(id); setEdgeOverlay({ id, source, target, deletable, x, y }); } },
+    ];
+    if (deletable) items.push({ label: "Delete", danger: true, onClick: () => onDeleteEdge(id) });
+    return items;
+  };
+
   const genDocs = model.nodes.filter((n) => n.kind === "doc" && n.status === "generated").length;
   const totalDocs = model.nodes.filter((n) => n.kind === "doc").length;
 
@@ -503,6 +545,9 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           selectedEdge={selectedEdge}
           onSelectEdge={setSelectedEdge}
           onReconnectEdge={onReconnectEdge}
+          onPaneContextMenu={(x, y) => setCtxMenu({ x, y, items: paneMenu() })}
+          onNodeContextMenu={(node, x, y) => setCtxMenu({ x, y, items: nodeMenu(node, x, y) })}
+          onEdgeContextMenu={(id, source, target, x, y) => setCtxMenu({ x, y, items: edgeMenu(id, source, target, x, y) })}
         />
       </div>
 
@@ -643,6 +688,8 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           </Button>
         </div>
       )}
+
+      {ctxMenu && <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxMenu.items} onClose={() => setCtxMenu(null)} />}
     </div>
   );
 }

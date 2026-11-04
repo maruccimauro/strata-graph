@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -53,15 +53,25 @@ export interface StrataCanvasProps {
   selectedEdge: string | null;
   onSelectEdge: (id: string | null) => void;
   onReconnectEdge: (edgeId: string, source: string, target: string) => void;
+  onPaneContextMenu: (x: number, y: number) => void;
+  onNodeContextMenu: (node: GraphNode, x: number, y: number) => void;
+  onEdgeContextMenu: (id: string, source: string, target: string, x: number, y: number) => void;
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, onReconnectEdge } = props;
+  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, onReconnectEdge, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
+
+  // Transient hover highlight (N-30): a selection always wins; otherwise, when
+  // the toggle is on, the hovered node/edge drives the same highlight visual.
+  const [hoverNode, setHoverNode] = useState<string | null>(null);
+  const [hoverEdge, setHoverEdge] = useState<string | null>(null);
+  const hlNode = selected ?? (prefs.hoverHighlight ? hoverNode : null);
+  const hlEdge = selectedEdge ?? (prefs.hoverHighlight ? hoverEdge : null);
 
   const nodeIndex = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model]);
   const { rfNodes, rfEdges } = useMemo(
-    () => build(model, prefs, selected, selectedEdge),
-    [model, prefs, selected, selectedEdge, themeKey],
+    () => build(model, prefs, hlNode, hlEdge, selectedEdge),
+    [model, prefs, hlNode, hlEdge, selectedEdge, themeKey],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes);
@@ -163,7 +173,14 @@ export function StrataCanvas(props: StrataCanvasProps) {
     transientEdge.current = null;
     onActivateNode(g, e.clientX, e.clientY);
   };
-  const onNodeMouseLeave: NodeMouseHandler = () => {
+  const onNodeMouseEnter: NodeMouseHandler = (e, node) => {
+    if (prefs.hoverHighlight && node.type !== "band") {
+      setHoverNode(node.type === "section" ? null : node.id);
+    }
+    openTransientNode(e, node);
+  };
+  const onNodeMouseLeave: NodeMouseHandler = (_e, node) => {
+    setHoverNode((cur) => (cur === node.id ? null : cur));
     if (transientNode.current) closeTransient();
   };
 
@@ -174,7 +191,12 @@ export function StrataCanvas(props: StrataCanvasProps) {
     transientNode.current = null;
     onActivateEdge(edge.id, edge.source, edge.target, e.clientX, e.clientY);
   };
-  const onEdgeMouseLeave: EdgeMouseHandler = () => {
+  const onEdgeMouseEnter: EdgeMouseHandler = (e, edge) => {
+    if (prefs.hoverHighlight && !edge.id.startsWith("branch:")) setHoverEdge(edge.id);
+    openTransientEdge(e, edge);
+  };
+  const onEdgeMouseLeave: EdgeMouseHandler = (_e, edge) => {
+    setHoverEdge((cur) => (cur === edge.id ? null : cur));
     if (transientEdge.current) closeTransient();
   };
   // Click a dependency/comment edge to select it; pressing Delete then removes
@@ -228,15 +250,33 @@ export function StrataCanvas(props: StrataCanvasProps) {
       onEdgesChange={onEdgesChange}
       onNodeClick={onNodeClick}
       onNodeDoubleClick={onNodeDoubleClick}
-      onNodeMouseEnter={openTransientNode}
+      onNodeMouseEnter={onNodeMouseEnter}
       onNodeMouseMove={openTransientNode}
       onNodeMouseLeave={onNodeMouseLeave}
       onSelectionChange={({ nodes: sel }) => onSelectionChange(sel.filter((n) => n.type !== "band").map((n) => n.id))}
-      onEdgeMouseEnter={openTransientEdge}
+      onEdgeMouseEnter={onEdgeMouseEnter}
       onEdgeMouseMove={openTransientEdge}
       onEdgeMouseLeave={onEdgeMouseLeave}
       onEdgeClick={onEdgeClick}
       onEdgeDoubleClick={onEdgeDoubleClick}
+      onPaneContextMenu={(e) => {
+        e.preventDefault();
+        onPaneContextMenu(e.clientX, e.clientY);
+      }}
+      onNodeContextMenu={(e, node) => {
+        e.preventDefault();
+        const g = node.type === "band" ? undefined : nodeIndex.get(node.id);
+        if (g) onNodeContextMenu(g, e.clientX, e.clientY);
+        else onPaneContextMenu(e.clientX, e.clientY);
+      }}
+      onEdgeContextMenu={(e, edge) => {
+        e.preventDefault();
+        if (edge.id.startsWith("branch:")) {
+          onPaneContextMenu(e.clientX, e.clientY);
+          return;
+        }
+        onEdgeContextMenu(edge.id, edge.source, edge.target, e.clientX, e.clientY);
+      }}
       onReconnectStart={() => {
         transientNode.current = null;
         transientEdge.current = null;
@@ -307,7 +347,7 @@ function reach(map: Map<string, string[]>, start: string): Set<string> {
   return out;
 }
 
-function build(model: GraphModel, prefs: Prefs, selected: string | null, selectedEdge: string | null): { rfNodes: Node[]; rfEdges: Edge[] } {
+function build(model: GraphModel, prefs: Prefs, selected: string | null, highlightEdge: string | null, selectedEdge: string | null): { rfNodes: Node[]; rfEdges: Edge[] } {
   const orientation = prefs.layout ?? "horizontal";
   const laid = applyDefaultLayout(model, orientation);
   const sectionHue = new Map(laid.sections.map((s) => [s.id, s.hue]));
@@ -423,13 +463,15 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, selecte
 
   for (const e of laid.edges) {
     if (e.kind === "comment") {
+      // glow on hover or selection; the reconnect-anchor class only on selection
+      const glow = e.id === highlightEdge;
       const sel = e.id === selectedEdge;
       rfEdges.push({
         id: e.id,
         type: "floating",
         source: e.source,
         target: e.target,
-        style: sel
+        style: glow
           ? { stroke: "#caa83a", strokeWidth: 1.8, strokeDasharray: "2 3", opacity: 1, filter: glowFilter("#caa83a") }
           : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
         className: sel ? "edge-selected" : undefined,
@@ -455,10 +497,10 @@ function build(model: GraphModel, prefs: Prefs, selected: string | null, selecte
               strokeDasharray: ghost ? "5 4" : undefined,
               opacity: selected ? 0.07 : ghost ? 0.5 : 0.55,
             };
-    // A selected edge keeps its weight but gains a glow so it reads as the
-    // active target without the heavy stroke.
+    // A highlighted edge (hovered or selected) keeps its weight but gains a glow
+    // in its own effective color, so it reads as active without a heavy stroke.
     const style =
-      e.id === selectedEdge
+      e.id === highlightEdge
         ? { ...base, strokeWidth: Math.max(base.strokeWidth, 2), opacity: 1, filter: glowFilter(base.stroke) }
         : base;
     rfEdges.push({

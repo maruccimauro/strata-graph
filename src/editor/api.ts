@@ -11,6 +11,9 @@ export interface Prefs {
   showDeps: boolean;
   /** band orientation: horizontal rows or vertical columns. */
   layout: "horizontal" | "vertical";
+  /** on hover, transiently highlight a node's upstream/downstream paths and the
+   *  hovered edge (same visual as selecting, without the click). */
+  hoverHighlight: boolean;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -18,6 +21,7 @@ export const DEFAULT_PREFS: Prefs = {
   edgeColor: "section",
   showDeps: true,
   layout: "horizontal",
+  hoverHighlight: true,
 };
 
 export interface ViewerState {

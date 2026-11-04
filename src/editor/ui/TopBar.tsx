@@ -134,6 +134,7 @@ export function TopBar(p: TopBarProps) {
           <MenuItem label={`${check(p.prefs.hideMissing)}  Hide not-generated`} onClick={() => p.onPrefsChange({ hideMissing: !p.prefs.hideMissing })} />
           <MenuItem label={`${check(p.prefs.edgeColor === "section")}  Color edges by section`} onClick={() => p.onPrefsChange({ edgeColor: p.prefs.edgeColor === "section" ? "neutral" : "section" })} />
           <MenuItem label={`${check(p.prefs.showDeps)}  Show dependency edges`} onClick={() => p.onPrefsChange({ showDeps: !p.prefs.showDeps })} />
+          <MenuItem label={`${check(p.prefs.hoverHighlight)}  Highlight paths on hover`} onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} />
           <MenuItem label="Toggle theme" onClick={() => { close(); p.onToggleTheme(); }} />
         </Menu>
 
@@ -159,6 +160,7 @@ export function TopBar(p: TopBarProps) {
         <Button onClick={p.onFit} title="Fit to screen">⤢ Fit</Button>
         <Button onClick={p.onResetLayout} title="Reset node positions">⟳ Reset</Button>
         <span style={{ flex: 1 }} />
+        <Button onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} active={p.prefs.hoverHighlight} title="Highlight a node's upstream/downstream paths on hover">✦ Paths</Button>
         <Button onClick={() => p.onPrefsChange({ hideMissing: !p.prefs.hideMissing })} active={p.prefs.hideMissing} title="Hide not-generated nodes">Hide ∅</Button>
         <Button onClick={p.onOpenPrefs} title="Preferences">⚙</Button>
         <Button onClick={p.onToggleTheme} title="Toggle light/dark">◐</Button>

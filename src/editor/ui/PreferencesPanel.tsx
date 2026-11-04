@@ -217,6 +217,9 @@ function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partia
       <Field label="Show dependency edges">
         <input type="checkbox" checked={prefs.showDeps} onChange={(e) => onChange({ showDeps: e.target.checked })} />
       </Field>
+      <Field label="Highlight paths on hover">
+        <input type="checkbox" checked={prefs.hoverHighlight} onChange={(e) => onChange({ hoverHighlight: e.target.checked })} />
+      </Field>
     </Group>
   );
 }
