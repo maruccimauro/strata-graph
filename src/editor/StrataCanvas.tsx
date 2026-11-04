@@ -97,10 +97,17 @@ export function StrataCanvas(props: StrataCanvasProps) {
   // overlay; releasing Alt (or losing window focus) closes any transient one.
   useEffect(() => {
     const kd = (e: KeyboardEvent) => {
-      if (e.key === "Alt") altDown.current = true;
+      // preventDefault stops the browser from moving focus to its own menu bar
+      // when Alt is tapped on its own (which otherwise swallows the next hover
+      // and keystroke until the page is clicked again).
+      if (e.key === "Alt") {
+        altDown.current = true;
+        e.preventDefault();
+      }
     };
     const ku = (e: KeyboardEvent) => {
       if (e.key !== "Alt") return;
+      e.preventDefault();
       altDown.current = false;
       closeTransient();
     };
@@ -121,7 +128,16 @@ export function StrataCanvas(props: StrataCanvasProps) {
   }, [onCloseOverlays]);
 
   const onNodeClick: NodeMouseHandler = (_e, node) => {
-    if (node.type === "band" || node.type === "section") return;
+    // A single click always dismisses an open (sticky) overlay. Section bands
+    // cover the canvas and never reach onPaneClick, so a click on a band acts
+    // like a click on empty space: close and deselect.
+    onCloseOverlays();
+    if (node.type === "band") {
+      onSelectNode(null);
+      onSelectEdge(null);
+      return;
+    }
+    if (node.type === "section") return;
     onSelectEdge(null);
     onSelectNode(selected === node.id ? null : node.id);
   };
@@ -166,7 +182,12 @@ export function StrataCanvas(props: StrataCanvasProps) {
   // edges are not selectable and have no overlay.
   const onEdgeClick: EdgeMouseHandler = (e, edge) => {
     e.stopPropagation();
-    if (edge.id.startsWith("branch:")) return;
+    onCloseOverlays();
+    if (edge.id.startsWith("branch:")) {
+      onSelectNode(null);
+      onSelectEdge(null);
+      return;
+    }
     onSelectNode(null);
     onSelectEdge(selectedEdge === edge.id ? null : edge.id);
   };

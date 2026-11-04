@@ -404,13 +404,18 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
         e.preventDefault();
         redo();
       } else if (e.key === "Escape") {
-        setOverlay(null);
-        setEdgeOverlay(null);
-        setPrefsOpen(false);
-        setPending(null);
-        setConnectFrom(null);
-        setSelectedNode(null);
-        setSelectedEdge(null);
+        // Staged Escape: the first press closes any open overlay or panel; when
+        // nothing is open, the next press clears the current selection.
+        if (overlay || edgeOverlay || prefsOpen || pending || connectFrom) {
+          setOverlay(null);
+          setEdgeOverlay(null);
+          setPrefsOpen(false);
+          setPending(null);
+          setConnectFrom(null);
+        } else {
+          setSelectedNode(null);
+          setSelectedEdge(null);
+        }
       } else if ((e.key === "Delete" || e.key === "Backspace") && isEditableTarget(e.target) === false) {
         // Delete the selected dependency/comment edge (auto branch edges are
         // never selectable, so this cannot remove a section branch).
@@ -427,7 +432,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, onAddNode, onDeleteEdge]);
+  }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom]);
 
   const genDocs = model.nodes.filter((n) => n.kind === "doc" && n.status === "generated").length;
   const totalDocs = model.nodes.filter((n) => n.kind === "doc").length;
