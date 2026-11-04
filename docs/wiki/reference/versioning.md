@@ -61,6 +61,27 @@ without its wiki page is not finished. Cutting the version itself is a separate,
 milestone-driven step.
 :::
 
+## Publishing a GitHub Release
+
+Pushing a version tag publishes a [GitHub Release](https://github.com/maruccimauro/strata-graph/releases)
+automatically. The [`release` workflow](https://github.com/maruccimauro/strata-graph/blob/main/.github/workflows/release.yml)
+runs on every `v*` tag and:
+
+1. Builds the offline single-file application.
+2. Reads the matching section from `CHANGELOG.md` as the release notes, so the
+   release text and the changelog never diverge.
+3. Attaches the build as a downloadable asset named `strata-vX.Y.Z.html`, a
+   self-contained page that opens in any browser with no install step.
+
+So a normal release needs no manual step beyond pushing the tag: the changelog
+entry already written in the batch becomes the release notes.
+
+::: info
+The workflow also exposes a manual trigger (`workflow_dispatch`) that takes an
+existing tag and runs the same build-and-publish steps. It was used once to
+backfill releases for the tags created before the workflow existed.
+:::
+
 ## The changelog
 
 The full, authoritative history lives in the repository changelog. It is the
