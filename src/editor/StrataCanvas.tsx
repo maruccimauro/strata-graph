@@ -66,13 +66,14 @@ export interface StrataCanvasProps {
   retarget: Retarget | null;
   onRetargetPick: (nodeId: string) => void;
   onRetargetCancel: () => void;
+  onAnchorRetarget: (id: string, source: string, target: string, end: "source" | "target", x: number, y: number) => void;
   onPaneContextMenu: (x: number, y: number) => void;
   onNodeContextMenu: (node: GraphNode, x: number, y: number) => void;
   onEdgeContextMenu: (id: string, source: string, target: string, x: number, y: number) => void;
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, retarget, onRetargetPick, onRetargetCancel, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
+  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
   const rf = useReactFlow();
   // Cursor position in flow coordinates while a retarget is in progress, so the
   // rubber-band line can follow it from the fixed endpoint.
@@ -92,8 +93,8 @@ export function StrataCanvas(props: StrataCanvasProps) {
   // rebuilds edges only (no node flicker) and highlights edges, not the node.
   const rfNodes = useMemo(() => buildNodes(info, selected), [info, selected, themeKey]);
   const rfEdges = useMemo(
-    () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE),
-    [info, prefs, selected, hoverN, selectedEdge, hoverE, themeKey],
+    () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget),
+    [info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, themeKey],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes);
@@ -546,6 +547,7 @@ function buildEdges(
   hoverNode: string | null,
   selectedEdge: string | null,
   hoverEdge: string | null,
+  onAnchorGrab: (id: string, source: string, target: string, end: "source" | "target", x: number, y: number) => void,
 ): Edge[] {
   const { laid, sectionHue, byId, up, down, incoming } = info;
   const selAnc = selected ? reach(up, selected) : new Set<string>();
@@ -568,7 +570,7 @@ function buildEdges(
           ? { stroke: "#caa83a", strokeWidth: 1.8, strokeDasharray: "2 3", opacity: 1, filter: glowFilter("#caa83a") }
           : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
         className: e.id === selectedEdge ? "edge-selected" : undefined,
-        data: { kind: "comment", anchors: e.id === selectedEdge || e.id === hoverEdge },
+        data: { kind: "comment", anchors: e.id === selectedEdge || e.id === hoverEdge, onAnchorGrab },
       });
       continue;
     }
@@ -607,7 +609,7 @@ function buildEdges(
       target: e.target,
       style,
       className: e.id === selectedEdge ? "edge-selected" : undefined,
-      data: { originDot: true, kind: "dependency", anchors: glowEdge },
+      data: { originDot: true, kind: "dependency", anchors: glowEdge, onAnchorGrab },
       markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke },
     });
   }

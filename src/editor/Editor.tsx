@@ -285,6 +285,12 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     },
     [],
   );
+  /** Start retarget by clicking an edge endpoint anchor on the canvas. */
+  const onAnchorRetarget = useCallback(
+    (id: string, source: string, target: string, end: "source" | "target", x: number, y: number) =>
+      beginRetarget({ id, source, target, x, y }, end),
+    [beginRetarget],
+  );
   /** Start retarget from the edge overlay (uses its current anchor position). */
   const startMouseRetarget = useCallback(
     (movingEnd: "source" | "target") => {
@@ -644,6 +650,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
           retarget={retarget ? ({ edgeId: retarget.edgeId, movingEnd: retarget.movingEnd, fixedNodeId: retarget.fixedNodeId } as Retarget) : null}
           onRetargetPick={onRetargetPick}
           onRetargetCancel={cancelRetarget}
+          onAnchorRetarget={onAnchorRetarget}
           onPaneContextMenu={(x, y) => setCtxMenu({ x, y, items: paneMenu() })}
           onNodeContextMenu={(node, x, y) => setCtxMenu({ x, y, items: nodeMenu(node, x, y) })}
           onEdgeContextMenu={(id, source, target, x, y) => setCtxMenu({ x, y, items: edgeMenu(id, source, target, x, y) })}
