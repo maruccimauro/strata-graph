@@ -147,6 +147,15 @@ const en: Dict = {
   "prefs.sections.reset": "Reset",
   "prefs.sections.resetTip": "Reset to the built-in color",
   "prefs.sections.hue": "{label} hue",
+  // node connections panel (N-23)
+  "edgesPanel.title": "Connections of {name}",
+  "edgesPanel.empty": "This node has no connections yet.",
+  "edgesPanel.dependsOn": "Depends on",
+  "edgesPanel.requiredBy": "Required by",
+  "edgesPanel.comment": "Comment",
+  "edgesPanel.delete": "Remove this connection",
+  "overlay.edges.tip": "Manage connections",
+  "ctx.manageEdges": "Manage connections…",
   // shared
   "common.cancel": "Cancel",
   "common.delete": "Delete",

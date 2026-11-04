@@ -33,6 +33,10 @@ A node with no incoming dependency is linked to its section's central node by a 
 - **Delete**: with an edge selected, press `Delete` or `Backspace` to remove it. Deletes are undoable with `Ctrl+Z`. Branch edges cannot be deleted. You can also delete from the edge overlay's trash action.
 - **Reconnect (retarget)**: move one end of an edge to a different node from the **edge overlay** (double-click the edge to open it). Next to each end are two buttons. **⌖** retargets by pointer: the overlay hides, a line follows the cursor from the end that stays fixed, and clicking a node sets the new endpoint; press `Escape` or click empty space to cancel and reopen the overlay. **☰** retargets from a list instead: it reuses the Connect panel locked to that end, so you pick a section and the new node by name. The pointer retarget is also in the edge's [context menu](/working/context-menus). The dependency rebinds to the new node; if the edge came from the built-in model it becomes a manual edge, so the change persists. Retargeting the only incoming dependency away from a node turns that node into a section root, so it reattaches to its section's central node with a branch edge.
 
+## Manage a node's connections
+
+To see and prune every edge on a single node, open its **connection manager**: the **⛓** button in the node overlay action bar, or **Manage connections…** in the node's [context menu](/working/context-menus). It lists each edge touching the node with its direction, **Depends on** (a prerequisite of this node), **Required by** (a node that depends on this one), or **Comment**, and the node at the other end with its section. The **🗑** on a row removes that edge; the list refreshes in place and removals are undoable with `Ctrl+Z`. Branch edges are structural and never appear here.
+
 ## Inspect
 
 **Double-click** an edge to open the **edge overlay** (or hold <kbd>Alt</kbd> and hover it for a transient one); a single click selects the edge. The overlay names the depends-on and dependent nodes with their sections, and offers a delete action for non-branch edges. See [Overlays and actions](/working/overlays-and-actions).

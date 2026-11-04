@@ -5,6 +5,7 @@ import { toPng } from "html-to-image";
 import { StrataCanvas } from "./StrataCanvas";
 import type { Retarget } from "./StrataCanvas";
 import { NodeOverlay } from "./NodeOverlay";
+import { NodeEdgesPanel } from "./NodeEdgesPanel";
 import { ConnectPanel, type Direction } from "./ConnectPanel";
 import { TopBar } from "./ui/TopBar";
 import { ContextMenu, type ContextMenuItem } from "./ui/ContextMenu";
@@ -43,6 +44,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
   const [redoStack, setRedoStack] = useState<ViewerState[]>([]);
   const [themeKey, setThemeKey] = useState(0);
   const [overlay, setOverlay] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
+  const [edgesPanel, setEdgesPanel] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
   const [edgeOverlay, setEdgeOverlay] = useState<{ id: string; source: string; target: string; deletable: boolean; x: number; y: number } | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [pending, setPending] = useState<{ a: string; b: string } | null>(null);
@@ -495,13 +497,14 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
         // overlay); then any open overlay or panel closes; then the selection clears.
         if (retarget) {
           cancelRetarget();
-        } else if (overlay || edgeOverlay || prefsOpen || pending || connectFrom || retargetList) {
+        } else if (overlay || edgeOverlay || prefsOpen || pending || connectFrom || retargetList || edgesPanel) {
           setOverlay(null);
           setEdgeOverlay(null);
           setPrefsOpen(false);
           setPending(null);
           setConnectFrom(null);
           setRetargetList(null);
+          setEdgesPanel(null);
         } else {
           setSelectedNode(null);
           setSelectedEdge(null);
@@ -522,7 +525,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom, retargetList, retarget, cancelRetarget]);
+  }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom, retargetList, edgesPanel, retarget, cancelRetarget]);
 
   // ----- context menus (right-click), per the configurability policy -----
   const paneMenu = (): ContextMenuItem[] => [
@@ -545,6 +548,7 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
     if (node.kind !== "section") {
       items.push(
         { label: t("ctx.connect"), onClick: () => { setOverlay(null); setConnectFrom(node); } },
+        { label: t("ctx.manageEdges"), onClick: () => { setOverlay(null); setEdgesPanel({ node, x, y }); } },
         { label: t("ctx.addComment"), onClick: () => onAddComment(node.id) },
       );
       if (node.origin === "manual") {
@@ -661,10 +665,25 @@ export function Editor({ boot, onLoadModel }: { boot: Boot; onLoadModel?: (model
             setOverlay(null);
             setConnectFrom(node);
           }}
+          onManageEdges={(node) => {
+            setEdgesPanel({ node, x: overlay.x, y: overlay.y });
+            setOverlay(null);
+          }}
           onDelete={(id) => {
             onDeleteNode(id);
             setOverlay(null);
           }}
+        />
+      )}
+
+      {edgesPanel && (
+        <NodeEdgesPanel
+          node={model.nodes.find((n) => n.id === edgesPanel.node.id) ?? edgesPanel.node}
+          edges={model.edges}
+          at={{ x: edgesPanel.x, y: edgesPanel.y }}
+          infoOf={infoOf}
+          onDelete={onDeleteEdge}
+          onClose={() => setEdgesPanel(null)}
         />
       )}
 

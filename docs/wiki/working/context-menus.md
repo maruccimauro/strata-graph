@@ -21,6 +21,7 @@ Right-click a node:
 - **Open details** opens the node overlay.
 - **Lock / Unlock** the node so it cannot be moved. See [Node metadata](/working/node-metadata).
 - **Connect** to another node, and **Add comment**.
+- **Manage connections** opens the node's connection manager, which lists every edge on the node with a per-row remove. See [Edges](/modeling/edges).
 - **Delete** (manual nodes only).
 
 A section's central node shows only **Open details** and **Lock / Unlock**, since it cannot be connected, commented or deleted by hand.

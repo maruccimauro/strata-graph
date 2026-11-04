@@ -15,6 +15,7 @@ export interface NodeOverlayProps {
   onSetNodeMeta: (id: string, meta: { createdAt?: number; dueAt?: number; locked?: boolean }) => void;
   onAddComment: (nodeId: string) => void;
   onConnectPanel: (node: GraphNode) => void;
+  onManageEdges: (node: GraphNode) => void;
   onDelete: (id: string) => void;
 }
 
@@ -102,7 +103,7 @@ function Countdown({ dueAt }: { dueAt: number }) {
   );
 }
 
-export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, onSetSection, onSetNodeMeta, onAddComment, onConnectPanel, onDelete }: NodeOverlayProps) {
+export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, onSetSection, onSetNodeMeta, onAddComment, onConnectPanel, onManageEdges, onDelete }: NodeOverlayProps) {
   const isSection = node.kind === "section";
   const isComment = node.kind === "comment";
   const x = Math.min(at.x + 12, window.innerWidth - 330);
@@ -118,6 +119,7 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
           onClick={() => onSetNodeMeta(node.id, { locked: !node.locked })}
         />
         {!isSection && <IconAction icon="🔗" title={t("overlay.connect.tip")} onClick={() => onConnectPanel(node)} />}
+        {!isSection && <IconAction icon="⛓" title={t("overlay.edges.tip")} onClick={() => onManageEdges(node)} />}
         {!isSection && <IconAction icon="🏷️" title={t("overlay.comment.tip")} onClick={() => onAddComment(node.id)} />}
         {node.origin === "manual" && <IconAction icon="🗑" title={t("overlay.delete.tip")} danger onClick={() => onDelete(node.id)} />}
       </div>
