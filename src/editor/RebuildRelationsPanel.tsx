@@ -9,7 +9,6 @@ export interface RebuildRelationsPanelProps {
   alerts: BreakEvent[];
   labelOf: (id: string) => string;
   onReconnectPair: (eventId: string, pair: { source: string; target: string }) => void;
-  onDiscardPair: (eventId: string, pair: { source: string; target: string }) => void;
   onUnlink: (eventId: string, nodeId: string) => void;
   onReconnectAll: (eventId: string) => void;
   onResolveEvent: (eventId: string) => void;
@@ -17,37 +16,35 @@ export interface RebuildRelationsPanelProps {
   onClose: () => void;
 }
 
-type Row =
-  | { kind: "pair"; pair: { source: string; target: string }; severity: AlertSeverity }
-  | { kind: "lonely"; nodeId: string; severity: AlertSeverity };
+/** One affected dependent with its reconnection options (prerequisites of the
+ *  removed node it can reconnect to). */
+interface Row {
+  dep: string;
+  options: string[];
+  severity: AlertSeverity;
+}
 
-const worse = (a: AlertSeverity, b?: AlertSeverity): AlertSeverity => (a === "orphan" || b === "orphan" ? "orphan" : "partial");
-
-/** Split one event's pairs and lone nodes into rows tagged by severity (the worst
- *  of a pair's affected endpoints). */
 function eventRows(ev: BreakEvent): { orphan: Row[]; partial: Row[] } {
-  const rows: Row[] = [];
-  for (const p of ev.pairs) {
-    const sevs = [p.source, p.target].map((id) => ev.info[id]?.severity).filter(Boolean) as AlertSeverity[];
-    rows.push({ kind: "pair", pair: p, severity: sevs.reduce((acc, s) => worse(acc, s), "partial" as AlertSeverity) });
-  }
-  for (const id of ev.lonely) rows.push({ kind: "lonely", nodeId: id, severity: ev.info[id]?.severity ?? "partial" });
+  const rows: Row[] = Object.keys(ev.info).map((dep) => ({
+    dep,
+    options: ev.pairs.filter((p) => p.target === dep).map((p) => p.source),
+    severity: ev.info[dep]?.severity ?? "partial",
+  }));
   return { orphan: rows.filter((r) => r.severity === "orphan"), partial: rows.filter((r) => r.severity === "partial") };
 }
 
 /** The focused "Rebuild relations" mode (N-44): one card per deletion event, its
- *  broken links split into Orphaned and Partial sections. Reconnect or discard
- *  each bridge, reconnect them all, unlink a lone node, or dismiss the event. A
- *  node name locates it on the canvas; Alt and hover a bridge shows what it
- *  replaces. Dotted ghost previews are drawn on the canvas while this is open. */
-export function RebuildRelationsPanel({ alerts, labelOf, onReconnectPair, onDiscardPair, onUnlink, onReconnectAll, onResolveEvent, onLocate, onClose }: RebuildRelationsPanelProps) {
-  const [alt, setAlt] = useState(false);
+ *  affected dependents split into Orphaned and Partial sections. Each dependent
+ *  reconnects to one of the removed node's prerequisites or is unlinked; a name
+ *  locates it on the canvas, and a reconnection shows what it replaces on
+ *  [ALT + Mouse Hover]. Dotted ghost previews are drawn on the canvas while open. */
+export function RebuildRelationsPanel({ alerts, labelOf, onReconnectPair, onUnlink, onReconnectAll, onResolveEvent, onLocate, onClose }: RebuildRelationsPanelProps) {
   const [hint, setHint] = useState<{ x: number; y: number; text: string } | null>(null);
   const altRef = useRef(false);
 
   useEffect(() => {
-    const kd = (e: KeyboardEvent) => { if (e.key === "Alt") { altRef.current = true; setAlt(true); } };
-    const ku = (e: KeyboardEvent) => { if (e.key === "Alt") { altRef.current = false; setAlt(false); setHint(null); } };
+    const kd = (e: KeyboardEvent) => { if (e.key === "Alt") altRef.current = true; };
+    const ku = (e: KeyboardEvent) => { if (e.key === "Alt") { altRef.current = false; setHint(null); } };
     window.addEventListener("keydown", kd);
     window.addEventListener("keyup", ku);
     return () => { window.removeEventListener("keydown", kd); window.removeEventListener("keyup", ku); };
@@ -57,28 +54,37 @@ export function RebuildRelationsPanel({ alerts, labelOf, onReconnectPair, onDisc
     <button onClick={() => onLocate(id)} title={t("rebuild.locate.tip")} style={nameBtn}>{labelOf(id)}</button>
   );
 
-  const PairRow = ({ ev, pair, removed }: { ev: BreakEvent; pair: { source: string; target: string }; removed: string }) => (
-    <div
-      style={rowBox}
-      onMouseMove={(e) => { if (altRef.current) setHint({ x: e.clientX, y: e.clientY, text: t("rebuild.preview", { a: labelOf(pair.source), x: removed, b: labelOf(pair.target) }) }); }}
-      onMouseLeave={() => setHint(null)}
-    >
-      <span style={{ fontSize: ".8rem", minWidth: 0 }}>
-        <NameBtn id={pair.source} />
-        <span style={{ color: MUTED }}> {t("delete.dependsArrow")} </span>
-        <NameBtn id={pair.target} />
-      </span>
-      <span style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-        <Button onClick={() => onReconnectPair(ev.id, pair)} title={t("rebuild.reconnect.tip")}>{t("rebuild.reconnect")}</Button>
-        <Button variant="ghost" onClick={() => onDiscardPair(ev.id, pair)} title={t("rebuild.discard.tip")}>{t("rebuild.discard")}</Button>
-      </span>
-    </div>
-  );
-
-  const LonelyRow = ({ ev, id }: { ev: BreakEvent; id: string }) => (
+  const DepRow = ({ ev, row }: { ev: BreakEvent; row: Row }) => (
     <div style={rowBox}>
-      <span style={{ fontSize: ".8rem", minWidth: 0 }}><NameBtn id={id} /></span>
-      <Button variant="ghost" onClick={() => onUnlink(ev.id, id)} title={t("rebuild.unlink.tip")}>{t("rebuild.unlink")}</Button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <NameBtn id={row.dep} />
+        <span style={severityChip(row.severity)}>{t(severityKey(row.severity))}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 5 }}>
+        {row.options.length > 0 ? (
+          <>
+            <span style={{ fontSize: ".72rem", color: MUTED }}>{t("rebuild.reconnectTo")}</span>
+            {row.options.map((p) => (
+              <Button
+                key={p}
+                onClick={() => onReconnectPair(ev.id, { source: p, target: row.dep })}
+                title={t("rebuild.reconnect.tip")}
+              >
+                <span
+                  onMouseMove={(e) => { if (altRef.current) setHint({ x: e.clientX, y: e.clientY, text: t("rebuild.preview", { a: labelOf(p), x: ev.removedLabel, b: labelOf(row.dep) }) }); }}
+                  onMouseLeave={() => setHint(null)}
+                >
+                  {labelOf(p)}
+                </span>
+              </Button>
+            ))}
+          </>
+        ) : (
+          <span style={{ fontSize: ".72rem", color: MUTED }}>{t("rebuild.noOption")}</span>
+        )}
+        <span style={{ flex: 1 }} />
+        <Button variant="ghost" onClick={() => onUnlink(ev.id, row.dep)} title={t("rebuild.unlink.tip")}>{t("rebuild.unlink")}</Button>
+      </div>
     </div>
   );
 
@@ -86,16 +92,12 @@ export function RebuildRelationsPanel({ alerts, labelOf, onReconnectPair, onDisc
     if (rows.length === 0) return null;
     return (
       <div style={{ marginBottom: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "4px 0 4px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "4px 0" }}>
           <span style={severityChip(severity)}>{t(severityKey(severity))}</span>
           <span style={{ fontSize: ".68rem", color: MUTED }}>{rows.length}</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-          {rows.map((r, i) =>
-            r.kind === "pair"
-              ? <PairRow key={`p${i}`} ev={ev} pair={r.pair} removed={ev.removedLabel} />
-              : <LonelyRow key={`l${i}`} ev={ev} id={r.nodeId} />,
-          )}
+          {rows.map((r) => <DepRow key={r.dep} ev={ev} row={r} />)}
         </div>
       </div>
     );
@@ -105,13 +107,13 @@ export function RebuildRelationsPanel({ alerts, labelOf, onReconnectPair, onDisc
     <Panel
       title={t("rebuild.title")}
       onClose={onClose}
-      style={{ right: 16, top: 96, width: 360, maxWidth: "calc(100vw - 32px)", maxHeight: "72vh", overflowY: "auto" }}
+      style={{ right: 16, top: 96, width: 370, maxWidth: "calc(100vw - 32px)", maxHeight: "72vh", overflowY: "auto" }}
     >
       {alerts.length === 0 ? (
         <div style={{ fontSize: ".82rem", color: MUTED }}>{t("rebuild.empty")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: ".76rem", color: MUTED, lineHeight: 1.5 }}>{t("rebuild.intro")} {alt ? "" : t("rebuild.altHint")}</div>
+          <div style={{ fontSize: ".76rem", color: MUTED, lineHeight: 1.5 }}>{t("rebuild.intro")} {t("rebuild.altHint")}</div>
           {alerts.map((ev) => {
             const { orphan, partial } = eventRows(ev);
             return (
@@ -123,7 +125,7 @@ export function RebuildRelationsPanel({ alerts, labelOf, onReconnectPair, onDisc
                 <Section ev={ev} severity="orphan" rows={orphan} />
                 <Section ev={ev} severity="partial" rows={partial} />
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginTop: 6 }}>
-                  {ev.pairs.length > 1 && (
+                  {ev.pairs.length > 0 && (
                     <Button onClick={() => onReconnectAll(ev.id)} title={t("rebuild.reconnectAll.tip")}>{t("rebuild.reconnectAll")}</Button>
                   )}
                   <Button variant="ghost" onClick={() => onResolveEvent(ev.id)} title={t("rebuild.dismiss.tip")}>{t("rebuild.dismiss")}</Button>
@@ -144,10 +146,9 @@ export function RebuildRelationsPanel({ alerts, labelOf, onReconnectPair, onDisc
 
 const rowBox = {
   display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 8,
-  padding: "5px 7px",
+  flexDirection: "column" as const,
+  gap: 2,
+  padding: "6px 8px",
   border: "1px solid var(--line)",
   borderRadius: 7,
   background: "color-mix(in srgb, var(--muted) 6%, transparent)",

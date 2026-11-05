@@ -18,7 +18,7 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
-import { analyzeBreak, buildBreakEvent, alertedNodes, normalizeEvent, resolveNodeInEvent, type BreakAnalysis } from "./integrity";
+import { analyzeBreak, buildBreakEvent, alertedNodes, normalizeEvent, resolveDependent, purgeNode, type BreakAnalysis } from "./integrity";
 import { persist, pickFile, openPath, DEFAULT_PREFS, nextLayerOrder, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap, type BreakEvent } from "./api";
 import { t, setLang } from "./i18n";
 import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
@@ -275,7 +275,7 @@ export function Editor({
         for (const b of bridges) manualEdges = addBridge(manualEdges, b.source, b.target);
         // Purge the removed node from any prior alert that referenced it (it no
         // longer exists, so it must not keep being marked), then add the new event.
-        const purged = (s.alerts ?? []).flatMap((ev) => { const r = resolveNodeInEvent(ev, node.id); return r ? [r] : []; });
+        const purged = (s.alerts ?? []).flatMap((ev) => { const r = purgeNode(ev, node.id); return r ? [r] : []; });
         const nextAlerts = event ? [...purged, event] : purged;
         return { ...s, manualNodes, removedNodes, manualEdges, alerts: nextAlerts };
       });
@@ -314,8 +314,8 @@ export function Editor({
     [commit],
   );
 
-  /** Reconnect a bridge: create the prerequisite -> dependent edge, then resolve
-   *  both of its endpoints in the event (both are rebridged and no longer broken). */
+  /** Reconnect a dependent: create the prerequisite -> dependent edge and resolve
+   *  that dependent (it now has a prerequisite). Other dependents are untouched. */
   const reconnectPair = useCallback(
     (eventId: string, pair: { source: string; target: string }) => {
       commit((s) => ({
@@ -323,22 +323,14 @@ export function Editor({
         manualEdges: addBridge(s.manualEdges ?? [], pair.source, pair.target),
         alerts: (s.alerts ?? []).flatMap((ev) => {
           if (ev.id !== eventId) return [ev];
-          const r1 = resolveNodeInEvent(ev, pair.source);
-          const r2 = r1 ? resolveNodeInEvent(r1, pair.target) : null;
-          return r2 ? [r2] : [];
+          const r = resolveDependent(ev, pair.target);
+          return r ? [r] : [];
         }),
       }));
     },
     [commit, addBridge],
   );
-  /** Discard a bridge: drop it without creating an edge. A neighbor whose last
-   *  bridge was discarded becomes a lone one (resolved only by unlinking). */
-  const discardPair = useCallback(
-    (eventId: string, pair: { source: string; target: string }) =>
-      updateEvent(eventId, (ev) => ({ ...ev, pairs: ev.pairs.filter((p) => !(p.source === pair.source && p.target === pair.target)) })),
-    [updateEvent],
-  );
-  /** Create every remaining bridge of an event and resolve all their endpoints. */
+  /** Reconnect every pending dependent of an event to all of its options. */
   const reconnectAllEvent = useCallback(
     (eventId: string) => {
       commit((s) => {
@@ -346,14 +338,14 @@ export function Editor({
         if (!ev) return s;
         let manualEdges = s.manualEdges ?? [];
         for (const p of ev.pairs) manualEdges = addBridge(manualEdges, p.source, p.target);
-        const endpoints = new Set(ev.pairs.flatMap((p) => [p.source, p.target]));
+        const targets = new Set(ev.pairs.map((p) => p.target));
         return {
           ...s,
           manualEdges,
           alerts: (s.alerts ?? []).flatMap((e) => {
             if (e.id !== eventId) return [e];
             let r: BreakEvent | null = e;
-            for (const id of endpoints) { if (!r) break; r = resolveNodeInEvent(r, id); }
+            for (const d of targets) { if (!r) break; r = resolveDependent(r, d); }
             return r ? [r] : [];
           }),
         };
@@ -361,9 +353,9 @@ export function Editor({
     },
     [commit, addBridge],
   );
-  /** Unlink a neighbor from one event (mark it resolved on purpose). */
+  /** Unlink a dependent from one event (mark it resolved on purpose). */
   const unlinkNeighbor = useCallback(
-    (eventId: string, nodeId: string) => updateEvent(eventId, (ev) => resolveNodeInEvent(ev, nodeId) ?? { ...ev, info: {} }),
+    (eventId: string, nodeId: string) => updateEvent(eventId, (ev) => resolveDependent(ev, nodeId) ?? { ...ev, info: {} }),
     [updateEvent],
   );
   /** Unlink a node from every event it appears in (used from its overlay/menu). */
@@ -373,7 +365,7 @@ export function Editor({
         ...s,
         alerts: (s.alerts ?? []).flatMap((ev) => {
           if (!ev.info[nodeId]) return [ev];
-          const r = resolveNodeInEvent(ev, nodeId);
+          const r = resolveDependent(ev, nodeId);
           return r ? [r] : [];
         }),
       })),
@@ -1227,7 +1219,6 @@ export function Editor({
           alerts={alerts}
           labelOf={labelOf}
           onReconnectPair={reconnectPair}
-          onDiscardPair={discardPair}
           onUnlink={unlinkNeighbor}
           onReconnectAll={requestReconnectAll}
           onResolveEvent={requestDismissEvent}
