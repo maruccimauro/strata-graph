@@ -19,19 +19,19 @@ history; the project carried no tagged releases before this file was introduced.
 
 ### Added
 
-- Bands grow to their content: dragging a node past its band grows the band to
-  keep it inside and shifts the later bands so nodes never overlap across bands.
+- Bands grow to their content: dragging a node past a band grows the band live to
+  keep it inside, sized to the box its nodes occupy so empty space is reclaimed on
+  either side. Growth pushes only the neighboring bands on the side it needs, and
+  the shared direction (band width when horizontal, height when vertical) grows for
+  every band at once, in either direction, so nothing overlaps.
 - Preference "Grow bands to dragged content" (default on) in the View menu, the
   quick bar, the background context menu, and Preferences; off confines a node to
   its band instead of growing it.
 
 ### Changed
 
-- Document and central node positions are now stored relative to their band, which
-  renders them as children of the band node so they follow it when a band grows or
-  is re-stacked. Saved positions are migrated on load.
-- The `.sgm` format version is now 2 (positions are band relative); version 1 files
-  still open and have their positions migrated on import.
+- The `.sgm` format version is now 3; version 1 and 2 files still open and have
+  their node positions migrated on import.
 - A section central node now moves only across its band (up-down in a horizontal
   layout, left-right in a vertical one) and stays anchored on the other axis, with
   its travel clamped to the band so it cannot drift into a neighboring section.
