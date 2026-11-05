@@ -25,11 +25,11 @@ The central node moves only across its band and stays anchored on the other axis
 
 A band is sized to the box that its nodes occupy. Drag a node past a band edge and the band grows to keep it inside, live, while you drag; drag the node back and the band shrinks again, reclaiming the empty space on either side.
 
-Growth pushes only the side it needs. Along the stacking direction (top to bottom in a horizontal layout, left to right in a vertical one), a band that grows toward the end pushes the bands after it, and a band that grows toward the start pushes the bands before it, so nothing overlaps. Along the shared direction (the band width in a horizontal layout, the band height in a vertical one) every band shares one range, so a node dragged far out makes all the bands grow together, in either direction.
+Growth pushes only the side it needs. Along the stacking direction (top to bottom in a horizontal layout, left to right in a vertical one), a band that grows toward the end pushes the bands after it, and a band that grows toward the start pushes the bands before it, so nothing overlaps. Along the shared direction (the band width in a horizontal layout, the band height in a vertical one) every band shares one range, so a node dragged far out makes all the bands grow together, in either direction. The central node stays at the start of that shared range, so it follows when a band extends.
 
 Each orientation remembers its own arrangement, so growing a band in the horizontal layout does not affect the vertical one.
 
-This is on by default. Toggle **Grow bands to dragged content** from the **View** menu, the quick bar (**⇲ Grow**), the background right-click menu, or **Preferences ▸ Display**. When it is off, a node is confined to its band instead of growing it.
+This is on by default. Toggle **Grow bands to dragged content** from the **View** menu, the quick bar (**⇲ Grow**), the background right-click menu, or **Preferences ▸ Display**. Turning it off **freezes** the bands exactly where they are: the layout is kept, nodes are confined to their band, and dragging no longer resizes or reflows anything. Turn it back on to let the bands follow their content again.
 
 ::: info
 Moving a node to another section with the **Section** list places it in the target band's grid, rather than keeping its old spot.

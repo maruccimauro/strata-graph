@@ -23,10 +23,12 @@ history; the project carried no tagged releases before this file was introduced.
   keep it inside, sized to the box its nodes occupy so empty space is reclaimed on
   either side. Growth pushes only the neighboring bands on the side it needs, and
   the shared direction (band width when horizontal, height when vertical) grows for
-  every band at once, in either direction, so nothing overlaps.
+  every band at once, in either direction, so nothing overlaps. The central node
+  follows the start of the shared direction as a band extends.
 - Preference "Grow bands to dragged content" (default on) in the View menu, the
-  quick bar, the background context menu, and Preferences; off confines a node to
-  its band instead of growing it.
+  quick bar, the background context menu, and Preferences. Turning it off freezes
+  the bands where they are and confines nodes to them, so dragging no longer resizes
+  or reflows the layout; turning it back on lets the bands follow their content.
 
 ### Changed
 
