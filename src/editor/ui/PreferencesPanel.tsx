@@ -246,6 +246,13 @@ function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partia
       <Field label={t("menu.view.autoGrow")} hint={t("prefs.autoGrow.hint")}>
         <input type="checkbox" checked={prefs.autoGrowBands} onChange={(e) => onChange({ autoGrowBands: e.target.checked })} />
       </Field>
+      <Field label={t("prefs.layerOrder")} hint={t("prefs.layerOrder.hint")}>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Segmented label={t("layer.nodes.short")} active={prefs.layerOrder === "nodes"} onClick={() => onChange({ layerOrder: "nodes" })} />
+          <Segmented label={t("layer.edges.short")} active={prefs.layerOrder === "edges"} onClick={() => onChange({ layerOrder: "edges" })} />
+          <Segmented label={t("layer.free.short")} active={prefs.layerOrder === "free"} onClick={() => onChange({ layerOrder: "free" })} />
+        </div>
+      </Field>
     </Group>
   );
 }

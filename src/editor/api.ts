@@ -29,6 +29,17 @@ export interface Prefs {
   autoGrowBands: boolean;
   /** UI language (i18n). English only for now; see `src/editor/i18n.ts`. */
   lang: string;
+  /** stacking order between nodes and edges: nodes on top, edges on top, or free
+   *  (each competes by its own z-index). The hovered/selected element rises within
+   *  its layer regardless. */
+  layerOrder: LayerOrder;
+}
+
+export type LayerOrder = "nodes" | "edges" | "free";
+
+/** Cycle the layer order: nodes on top -> edges on top -> free -> nodes. */
+export function nextLayerOrder(lo: LayerOrder): LayerOrder {
+  return lo === "nodes" ? "edges" : lo === "edges" ? "free" : "nodes";
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -40,6 +51,7 @@ export const DEFAULT_PREFS: Prefs = {
   hoverHighlight: true,
   autoGrowBands: true,
   lang: "en",
+  layerOrder: "nodes",
 };
 
 export type Orientation = Prefs["layout"];

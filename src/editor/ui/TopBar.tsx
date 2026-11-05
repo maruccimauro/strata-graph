@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Button } from "./primitives";
 import { MUTED, PANEL, INK } from "../theme";
 import { t } from "../i18n";
-import type { Prefs, Mode } from "../api";
+import { nextLayerOrder, type Prefs, type Mode } from "../api";
 
 export interface TopBarActions {
   onAddNode: () => void;
@@ -142,6 +142,10 @@ export function TopBar(p: TopBarProps) {
           <MenuItem label={`${check(p.prefs.showDeps)}  ${t("menu.view.showDeps")}`} onClick={() => p.onPrefsChange({ showDeps: !p.prefs.showDeps })} />
           <MenuItem label={`${check(p.prefs.hoverHighlight)}  ${t("menu.view.hoverPaths")}`} onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} />
           <MenuItem label={`${check(p.prefs.autoGrowBands)}  ${t("menu.view.autoGrow")}`} onClick={() => p.onPrefsChange({ autoGrowBands: !p.prefs.autoGrowBands })} />
+          <MenuItem
+            label={t("menu.view.layers", { value: t(`layer.${p.prefs.layerOrder}`) })}
+            onClick={() => p.onPrefsChange({ layerOrder: nextLayerOrder(p.prefs.layerOrder) })}
+          />
           <MenuItem label={t("menu.view.theme")} onClick={() => { close(); p.onToggleTheme(); }} />
         </Menu>
 
@@ -171,6 +175,7 @@ export function TopBar(p: TopBarProps) {
         <Button onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} active={p.prefs.hoverHighlight} title={t("tip.paths")}>✦ {t("quickbar.paths")}</Button>
         <Button onClick={() => p.onPrefsChange({ autoGrowBands: !p.prefs.autoGrowBands })} active={p.prefs.autoGrowBands} title={t("tip.autoGrow")}>⇲ {t("quickbar.autoGrow")}</Button>
         <Button onClick={() => p.onPrefsChange({ dimMissing: !p.prefs.dimMissing })} active={p.prefs.dimMissing} title={t("tip.dimMissing")}>{t("quickbar.dimMissing")}</Button>
+        <Button onClick={() => p.onPrefsChange({ layerOrder: nextLayerOrder(p.prefs.layerOrder) })} title={t("tip.layers")}>⿻ {t(`layer.${p.prefs.layerOrder}.short`)}</Button>
         <Button onClick={p.onOpenPrefs} title={t("tip.prefs")}>⚙</Button>
         <Button onClick={p.onToggleTheme} title={t("tip.theme")}>◐</Button>
       </div>

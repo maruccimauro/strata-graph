@@ -114,7 +114,7 @@ export function StrataCanvas(props: StrataCanvasProps) {
   // rebuilds edges only (no node flicker) and highlights edges, not the node.
   const rfNodes = useMemo(
     () => buildNodes(info, selected, prefs),
-    [info, selected, prefs.dimMissing, prefs.dimOpacity, themeKey],
+    [info, selected, prefs.dimMissing, prefs.dimOpacity, prefs.layerOrder, themeKey],
   );
   const rfEdges = useMemo(
     () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget?.edgeId ?? null),
@@ -531,6 +531,7 @@ export function StrataCanvas(props: StrataCanvasProps) {
       onSelectionDragStop={persistPositions}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
+      elevateNodesOnSelect={false}
       connectionMode={ConnectionMode.Loose}
       connectionRadius={34}
       fitView
@@ -652,6 +653,13 @@ function edgeDir(
   return "none";
 }
 
+// Layer ordering (N-35): nodes and edges sit on separate z-index floors chosen by
+// prefs.layerOrder, and the hovered/selected element rises by LAYER_ACTIVE within
+// its own layer. Bands always stay at the very back (z -1).
+const NODE_FLOOR = (lo: Prefs["layerOrder"]): number => (lo === "nodes" ? 1000 : 0);
+const EDGE_FLOOR = (lo: Prefs["layerOrder"]): number => (lo === "edges" ? 1000 : 0);
+const LAYER_ACTIVE = 20;
+
 /** Nodes depend only on the real selection: a selected node dims the unrelated
  *  nodes and marks its own chain. Hover never affects nodes. */
 function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs): Node[] {
@@ -692,6 +700,8 @@ function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs): Nod
     const op =
       missDim !== undefined && selDim !== undefined ? Math.min(missDim, selDim) : missDim ?? selDim;
     const dim = op !== undefined ? { opacity: op } : undefined;
+    // Layer order: node floor for the chosen mode, raised when this node is selected.
+    const zBase = NODE_FLOOR(prefs.layerOrder) + (selected === n.id ? LAYER_ACTIVE : 0);
     if (n.kind === "section") {
       const a = auto.get(n.sectionId!) ?? { gen: 0, total: 0 };
       rfNodes.push({
@@ -700,7 +710,7 @@ function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs): Nod
         position: n.position!,
         data: { label: n.label, hue, autoCount: a.gen, autoTotal: a.total, manualCount: manual.get(n.sectionId!) ?? 0, locked: n.locked },
         draggable: !n.locked,
-        zIndex: 1,
+        zIndex: zBase,
         style: dim,
       });
     } else if (n.kind === "comment") {
@@ -710,7 +720,7 @@ function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs): Nod
         position: n.position!,
         data: { label: n.label, note: n.note, ref: n.files?.[0]?.path, locked: n.locked, dueAt: n.dueAt },
         draggable: !n.locked,
-        zIndex: 2,
+        zIndex: zBase + 1,
         style: dim,
       });
     } else {
@@ -722,7 +732,7 @@ function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs): Nod
         position: n.position!,
         data: { label: n.label, hue, status: n.status, origin: n.origin, hl: hlOf(n.id), locked: n.locked, dueAt: n.dueAt },
         draggable: !n.locked,
-        zIndex: 1,
+        zIndex: zBase,
         style: dim,
       });
     }
@@ -774,6 +784,7 @@ function buildEdges(
         target: e.target,
         style: cGhost && prefs.dimMissing ? { ...cStyle, opacity: prefs.dimOpacity } : cStyle,
         className: edgeClass(e.id),
+        zIndex: EDGE_FLOOR(prefs.layerOrder) + 1 + (e.id === selectedEdge || e.id === hoverEdge ? LAYER_ACTIVE : 0),
         data: { kind: "comment", anchors: e.id === selectedEdge || e.id === hoverEdge, onAnchorGrab },
       });
       continue;
@@ -816,6 +827,7 @@ function buildEdges(
       target: e.target,
       style,
       className: edgeClass(e.id),
+      zIndex: EDGE_FLOOR(prefs.layerOrder) + 1 + (glowEdge ? LAYER_ACTIVE : 0),
       data: { originDot: true, kind: "dependency", anchors: glowEdge, onAnchorGrab },
       markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke },
     });
@@ -830,6 +842,7 @@ function buildEdges(
       source: `section:${n.sectionId}`,
       target: n.id,
       reconnectable: false,
+      zIndex: EDGE_FLOOR(prefs.layerOrder),
       style: {
         stroke: mutedCol(),
         strokeWidth: 1.2,

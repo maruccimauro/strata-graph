@@ -15,7 +15,7 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
-import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap } from "./api";
+import { persist, pickFile, openPath, DEFAULT_PREFS, nextLayerOrder, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap } from "./api";
 import { t, setLang } from "./i18n";
 import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
 import { toSgm, fromSgm } from "../core/sgm";
@@ -637,6 +637,7 @@ export function Editor({
     { label: t("menu.view.autoGrow"), checked: prefs.autoGrowBands, onClick: () => setPrefs({ autoGrowBands: !prefs.autoGrowBands }) },
     { label: t("menu.view.showDeps"), checked: prefs.showDeps, onClick: () => setPrefs({ showDeps: !prefs.showDeps }) },
     { label: t("menu.view.dimMissing"), checked: prefs.dimMissing, onClick: () => setPrefs({ dimMissing: !prefs.dimMissing }) },
+    { label: t("menu.view.layers", { value: t(`layer.${prefs.layerOrder}`) }), onClick: () => setPrefs({ layerOrder: nextLayerOrder(prefs.layerOrder) }) },
     { label: "", onClick: () => {}, separator: true },
     { label: t("menu.view.theme"), onClick: toggleTheme },
     { label: t("menu.edit.prefs"), onClick: () => setPrefsOpen(true) },
