@@ -17,6 +17,7 @@ import {
   type NodeChange,
   type NodeMouseHandler,
   type OnNodeDrag,
+  type SelectionDragHandler,
   type EdgeMouseHandler,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -299,7 +300,50 @@ export function StrataCanvas(props: StrataCanvasProps) {
   const vertical = orientation === "vertical";
   const bandBySection = useMemo(() => new Map(info.bands.map((b) => [b.section.id, b])), [info.bands]);
   const handleNodesChange = (changes: NodeChange[]) => {
+    const isH = !vertical;
+    const getS = (p: { x: number; y: number }) => (isH ? p.y : p.x);
+    const getL = (p: { x: number; y: number }) => (isH ? p.x : p.y);
+    const mk = (s: number, l: number) => (isH ? { x: l, y: s } : { x: s, y: l });
+    // A multi-selection drag emits a position change per selected node. Clamp the
+    // group rigidly into the bands here (not by overriding positions, which fights
+    // React Flow's group drag): on the stacking axis always, and on the long axis
+    // when auto-grow is off, so the group cannot leave the bands or overlap them.
+    const groupIds = new Set(
+      changes
+        .filter(
+          (ch) => ch.type === "position" && ch.dragging && ch.position && nodeIndex.get(ch.id)?.kind === "doc" && nodeIndex.get(ch.id)?.sectionId,
+        )
+        .map((ch) => (ch as { id: string }).id),
+    );
+    let corrS = 0;
+    let corrL = 0;
+    if (groupIds.size > 1) {
+      const DS = isH ? GEO.DOC_H : GEO.DOC_W;
+      const DL = isH ? GEO.DOC_W : GEO.DOC_H;
+      const posById = new Map(changes.filter((ch) => ch.type === "position" && ch.position).map((ch) => [(ch as { id: string }).id, (ch as { position: { x: number; y: number } }).position]));
+      const corr = (axisS: boolean): number => {
+        let low = 0;
+        let high = 0;
+        const size = axisS ? DS : DL;
+        for (const id of groupIds) {
+          const b = bandBySection.get(nodeIndex.get(id)!.sectionId!);
+          const p = posById.get(id);
+          if (!b || !p) continue;
+          const start = axisS ? (isH ? b.y : b.x) : isH ? b.x : b.y;
+          const end = start + (axisS ? (isH ? b.height : b.width) : isH ? b.width : b.height);
+          const v = axisS ? getS(p) : getL(p);
+          low = Math.max(low, start + GEO.BAND_PAD / 2 - v);
+          high = Math.max(high, v - (end - size - GEO.BAND_PAD / 2));
+        }
+        return low > 0 ? low : high > 0 ? -high : 0;
+      };
+      corrS = corr(true);
+      corrL = prefs.autoGrowBands ? 0 : corr(false);
+    }
     const fixed = changes.map((ch) => {
+      if (ch.type === "position" && ch.position && groupIds.has(ch.id)) {
+        return { ...ch, position: mk(getS(ch.position) + corrS, getL(ch.position) + corrL) };
+      }
       if (ch.type === "position" && ch.position && ch.id.startsWith("section:")) {
         const band = bandBySection.get(ch.id.slice("section:".length));
         if (band) {
@@ -325,6 +369,12 @@ export function StrataCanvas(props: StrataCanvasProps) {
   // instead. Central nodes and comments are handled elsewhere / float freely.
   const onNodeDrag: OnNodeDrag = (_e, node) => {
     if (node.type !== "doc") return;
+    // Dragging a node that belongs to a multi-selection drags the whole group
+    // (confinement is in handleNodesChange; here only the band long axis grows).
+    if (node.selected && rf.getNodes().filter((n) => n.selected).length > 1) {
+      applyGroupDrag();
+      return;
+    }
     const g = nodeIndex.get(node.id);
     const sid = g?.sectionId;
     if (!sid) return; // sectionless docs float freely
@@ -356,6 +406,71 @@ export function StrataCanvas(props: StrataCanvasProps) {
       }),
     );
   };
+
+  // Persist every node's absolute position (used after a single or group drag).
+  const persistPositions = () => {
+    const pos: Record<string, { x: number; y: number }> = {};
+    for (const n of rf.getNodes()) {
+      if (n.type === "band") continue;
+      pos[n.id] = { x: n.position.x, y: n.position.y };
+    }
+    onPersistPositions(pos);
+  };
+
+  // Multi-selection drag. The group moves rigidly: on the long axis it is free
+  // (and, with auto-grow on, every band grows together); on the stacking axis it
+  // is confined so no selected node leaves its band, which also keeps a cross-band
+  // selection from overlapping neighbors. With auto-grow off it is confined on both
+  // axes. Per-band stacking growth stays a single-node affordance.
+  // During a multi-selection drag the documents are confined by handleNodesChange;
+  // here, with auto-grow on, grow the shared long axis so the bands follow the
+  // group as it moves along it (the central tracks the start). Band resizes do not
+  // fight React Flow's group drag because they only touch the band/central nodes.
+  const applyGroupDrag = () => {
+    if (!prefs.autoGrowBands) return;
+    const isH = orientation === "horizontal";
+    const DL = isH ? GEO.DOC_W : GEO.DOC_H;
+    const getL = (p: { x: number; y: number }) => (isH ? p.x : p.y);
+    const sel = rf.getNodes().filter((n) => n.selected && n.type === "doc" && nodeIndex.get(n.id)?.sectionId);
+    if (sel.length < 2) return;
+    const RESERVE_L = isH ? GEO.COL0 : GEO.ROW0;
+    const M = isH ? GEO.SECTION_X : GEO.SECTION_Y;
+    const CANVAS_L = isH ? GEO.CANVAS_W : GEO.CANVAS_H;
+    const CL = isH ? GEO.SECTION_W : GEO.SECTION_H;
+    let lMin = Infinity;
+    let lMax = -Infinity;
+    for (const n of rf.getNodes()) {
+      if (n.type !== "doc" || !nodeIndex.get(n.id)?.sectionId) continue;
+      const l = getL(n.position);
+      lMin = Math.min(lMin, l);
+      lMax = Math.max(lMax, l + DL);
+    }
+    if (lMin === Infinity) {
+      lMin = RESERVE_L;
+      lMax = RESERVE_L;
+    }
+    const lStart = lMin - RESERVE_L;
+    const centralL = lStart + M;
+    const lSize = Math.max(CANVAS_L, Math.max(lMax, centralL + CL) - lStart);
+
+    setNodes((cur) =>
+      cur.map((n) => {
+        if (n.type === "band") {
+          return isH
+            ? { ...n, position: { x: lStart, y: n.position.y }, style: { ...(n.style ?? {}), width: lSize } }
+            : { ...n, position: { x: n.position.x, y: lStart }, style: { ...(n.style ?? {}), height: lSize } };
+        }
+        if (n.type === "section") {
+          return isH ? { ...n, position: { x: centralL, y: n.position.y } } : { ...n, position: { x: n.position.x, y: centralL } };
+        }
+        return n;
+      }),
+    );
+  };
+
+  // Dragging the selection rectangle drags the group (dragging a selected node is
+  // handled by onNodeDrag, which routes to the same logic).
+  const onSelectionDrag: SelectionDragHandler = () => applyGroupDrag();
 
   return (
     <ReactFlow
@@ -408,15 +523,9 @@ export function StrataCanvas(props: StrataCanvasProps) {
         if (c.source && c.target && c.source !== c.target) onConnectNodes(c.source, c.target);
       }}
       onNodeDrag={onNodeDrag}
-      onNodeDragStop={() => {
-        // Persist the packed absolute positions left by the live drag.
-        const pos: Record<string, { x: number; y: number }> = {};
-        for (const n of rf.getNodes()) {
-          if (n.type === "band") continue;
-          pos[n.id] = { x: n.position.x, y: n.position.y };
-        }
-        onPersistPositions(pos);
-      }}
+      onNodeDragStop={persistPositions}
+      onSelectionDrag={onSelectionDrag}
+      onSelectionDragStop={persistPositions}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       connectionMode={ConnectionMode.Loose}
