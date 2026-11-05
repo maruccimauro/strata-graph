@@ -9,8 +9,12 @@ export type Mode = "connected" | "static";
 export const POS_SCHEMA = 3;
 
 export interface Prefs {
-  /** hide "not generated" placeholder nodes. */
-  hideMissing: boolean;
+  /** dim (fade) "not generated" placeholder nodes and their edges instead of
+   *  hiding them: they stay in the layout but render at `dimOpacity`. */
+  dimMissing: boolean;
+  /** opacity applied to dimmed not-generated nodes/edges when `dimMissing` is on
+   *  (0..1). */
+  dimOpacity: number;
   /** edge color: follow the target section hue, or a neutral gray. */
   edgeColor: "section" | "neutral";
   /** show dependency edges / dependent edges (quick view toggles). */
@@ -28,7 +32,8 @@ export interface Prefs {
 }
 
 export const DEFAULT_PREFS: Prefs = {
-  hideMissing: false,
+  dimMissing: false,
+  dimOpacity: 0.1,
   edgeColor: "section",
   showDeps: true,
   layout: "horizontal",
@@ -111,13 +116,21 @@ export function saveStartup(s: Startup): void {
  *  shape, assigning the old positions to the default orientation (horizontal).
  *  No-op for state already in the new shape or without positions. */
 export function normalizeState(state: ViewerState): ViewerState {
-  const p = state.pos as Record<string, unknown> | undefined;
-  if (!p) return state;
+  let s = state;
+  // Legacy `hideMissing` pref (which hid not-generated nodes) became `dimMissing`
+  // (which fades them). Carry the old boolean over and drop the old key.
+  const prefs = s.prefs as (Prefs & { hideMissing?: boolean }) | undefined;
+  if (prefs && typeof prefs.hideMissing === "boolean" && prefs.dimMissing === undefined) {
+    const { hideMissing, ...rest } = prefs;
+    s = { ...s, prefs: { ...rest, dimMissing: hideMissing } as Prefs };
+  }
+  const p = s.pos as Record<string, unknown> | undefined;
+  if (!p) return s;
   const isPoint = (v: unknown): boolean =>
     typeof v === "object" && v !== null && typeof (v as { x?: unknown }).x === "number" && typeof (v as { y?: unknown }).y === "number";
   const legacy = Object.values(p).some(isPoint);
-  if (!legacy) return state;
-  return { ...state, pos: { horizontal: p as PosMap } };
+  if (!legacy) return s;
+  return { ...s, pos: { horizontal: p as PosMap } };
 }
 
 /** Bring saved positions up to the current schema (absolute coordinates), once.

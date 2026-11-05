@@ -3,14 +3,14 @@ import type { ViewerState } from "./api";
 
 /** Merge the base (built-in model/scan) graph with the user's editor state into the
  *  concrete GraphModel the canvas renders: section overrides, saved positions,
- *  manual nodes/edges, removed auto edges, and the hide-missing preference. */
+ *  manual nodes/edges, and removed auto edges. Not-generated nodes are always kept
+ *  in the model; the dim-missing preference only fades them at render time. */
 export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphModel {
   const layout = state.prefs?.layout ?? "horizontal";
   const pos = state.pos?.[layout] ?? {};
   const overrides = state.sectionOverrides ?? {};
   const hues = state.sectionHues ?? {};
   const meta = state.nodeMeta ?? {};
-  const hideMissing = state.prefs?.hideMissing ?? false;
   const seen = new Set(state.seenGenerated ?? []);
 
   const withMeta = (n: GraphNode): GraphNode => {
@@ -24,7 +24,7 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
     };
   };
 
-  let nodes: GraphNode[] = graph.nodes.map((n) => {
+  const nodes: GraphNode[] = graph.nodes.map((n) => {
     // a canon doc that was generated before but is now missing -> "unavailable"
     const status =
       n.kind === "doc" && n.origin === "auto" && n.status === "missing" && seen.has(n.id)
@@ -40,7 +40,6 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
   for (const m of state.manualNodes ?? []) {
     nodes.push(withMeta({ ...m, position: pos[m.id] ?? m.position }));
   }
-  if (hideMissing) nodes = nodes.filter((n) => n.status !== "missing");
 
   const nodeIds = new Set(nodes.map((n) => n.id));
   const removed = new Set(state.removedEdges ?? []);

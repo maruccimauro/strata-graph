@@ -216,8 +216,19 @@ function Segmented({ label, active, onClick }: { label: string; active: boolean;
 function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partial<Prefs>) => void }) {
   return (
     <Group title={t("prefs.display.title")}>
-      <Field label={t("menu.view.hideMissing")}>
-        <input type="checkbox" checked={prefs.hideMissing} onChange={(e) => onChange({ hideMissing: e.target.checked })} />
+      <Field label={t("menu.view.dimMissing")} hint={t("prefs.dimMissing.hint")}>
+        <input type="checkbox" checked={prefs.dimMissing} onChange={(e) => onChange({ dimMissing: e.target.checked })} />
+      </Field>
+      <Field label={t("prefs.dimOpacity")} hint={t("prefs.dimOpacity.hint", { value: Math.round(prefs.dimOpacity * 100) })}>
+        <input
+          type="range"
+          min={0.05}
+          max={0.8}
+          step={0.05}
+          value={prefs.dimOpacity}
+          disabled={!prefs.dimMissing}
+          onChange={(e) => onChange({ dimOpacity: Number(e.target.value) })}
+        />
       </Field>
       <Field label={t("menu.view.colorBySection")}>
         <input

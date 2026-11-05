@@ -112,7 +112,10 @@ export function StrataCanvas(props: StrataCanvasProps) {
   }, [info, prefs.autoGrowBands, onPersistBands]);
   // Nodes depend only on the real selection, never on hover, so hovering a node
   // rebuilds edges only (no node flicker) and highlights edges, not the node.
-  const rfNodes = useMemo(() => buildNodes(info, selected), [info, selected, themeKey]);
+  const rfNodes = useMemo(
+    () => buildNodes(info, selected, prefs),
+    [info, selected, prefs.dimMissing, prefs.dimOpacity, themeKey],
+  );
   const rfEdges = useMemo(
     () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget?.edgeId ?? null),
     [info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget, themeKey],
@@ -651,7 +654,7 @@ function edgeDir(
 
 /** Nodes depend only on the real selection: a selected node dims the unrelated
  *  nodes and marks its own chain. Hover never affects nodes. */
-function buildNodes(info: GraphInfo, selected: string | null): Node[] {
+function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs): Node[] {
   const { laid, sectionHue, bands, up, down, auto, manual } = info;
   const anc = selected ? reach(up, selected) : new Set<string>();
   const desc = selected ? reach(down, selected) : new Set<string>();
@@ -681,7 +684,14 @@ function buildNodes(info: GraphInfo, selected: string | null): Node[] {
   }
   for (const n of laid.nodes) {
     const hue = n.sectionId ? (sectionHue.get(n.sectionId) ?? 210) : 210;
-    const dim = dimmed(n.id) ? { opacity: 0.18 } : undefined;
+    // Two independent fades can apply: not-generated nodes faded by the dim-missing
+    // preference, and unrelated nodes faded while a selection is focused. The more
+    // transparent of the two wins.
+    const missDim = prefs.dimMissing && n.status === "missing" ? prefs.dimOpacity : undefined;
+    const selDim = dimmed(n.id) ? 0.18 : undefined;
+    const op =
+      missDim !== undefined && selDim !== undefined ? Math.min(missDim, selDim) : missDim ?? selDim;
+    const dim = op !== undefined ? { opacity: op } : undefined;
     if (n.kind === "section") {
       const a = auto.get(n.sectionId!) ?? { gen: 0, total: 0 };
       rfNodes.push({
@@ -753,14 +763,16 @@ function buildEdges(
   for (const e of laid.edges) {
     if (e.kind === "comment") {
       const glow = e.id === selectedEdge || e.id === hoverEdge;
+      const cStyle = glow
+        ? { stroke: "#caa83a", strokeWidth: 1.8, strokeDasharray: "2 3", opacity: 1, filter: glowFilter("#caa83a") }
+        : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 };
+      const cGhost = byId.get(e.source)?.status === "missing" || byId.get(e.target)?.status === "missing";
       rfEdges.push({
         id: e.id,
         type: "floating",
         source: e.source,
         target: e.target,
-        style: glow
-          ? { stroke: "#caa83a", strokeWidth: 1.8, strokeDasharray: "2 3", opacity: 1, filter: glowFilter("#caa83a") }
-          : { stroke: "#caa83a", strokeWidth: 1.5, strokeDasharray: "2 3", opacity: 0.6 },
+        style: cGhost && prefs.dimMissing ? { ...cStyle, opacity: prefs.dimOpacity } : cStyle,
         className: edgeClass(e.id),
         data: { kind: "comment", anchors: e.id === selectedEdge || e.id === hoverEdge, onAnchorGrab },
       });
@@ -791,9 +803,12 @@ function buildEdges(
       };
     // A selected or hovered edge itself always glows in its own color.
     const glowEdge = e.id === selectedEdge || e.id === hoverEdge;
-    const style = glowEdge
+    const emphStyle = glowEdge
       ? { ...styleBase, strokeWidth: Math.max(styleBase.strokeWidth, 2), opacity: 1, filter: glowFilter(styleBase.stroke) }
       : styleBase;
+    // When dim-missing is on, a not-generated endpoint fades the whole edge,
+    // overriding any selection/hover emphasis (highlights fade too).
+    const style = ghost && prefs.dimMissing ? { ...emphStyle, opacity: prefs.dimOpacity } : emphStyle;
     rfEdges.push({
       id: e.id,
       type: "floating",
@@ -815,7 +830,11 @@ function buildEdges(
       source: `section:${n.sectionId}`,
       target: n.id,
       reconnectable: false,
-      style: { stroke: mutedCol(), strokeWidth: 1.2, opacity: dimmed(n.id) ? 0.05 : 0.22 },
+      style: {
+        stroke: mutedCol(),
+        strokeWidth: 1.2,
+        opacity: prefs.dimMissing && n.status === "missing" ? prefs.dimOpacity : dimmed(n.id) ? 0.05 : 0.22,
+      },
     });
   }
 

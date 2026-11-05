@@ -137,7 +137,7 @@ export function TopBar(p: TopBarProps) {
             label={t("menu.view.layout", { value: t(p.prefs.layout === "vertical" ? "layout.vertical" : "layout.horizontal") })}
             onClick={() => p.onPrefsChange({ layout: p.prefs.layout === "vertical" ? "horizontal" : "vertical" })}
           />
-          <MenuItem label={`${check(p.prefs.hideMissing)}  ${t("menu.view.hideMissing")}`} onClick={() => p.onPrefsChange({ hideMissing: !p.prefs.hideMissing })} />
+          <MenuItem label={`${check(p.prefs.dimMissing)}  ${t("menu.view.dimMissing")}`} onClick={() => p.onPrefsChange({ dimMissing: !p.prefs.dimMissing })} />
           <MenuItem label={`${check(p.prefs.edgeColor === "section")}  ${t("menu.view.colorBySection")}`} onClick={() => p.onPrefsChange({ edgeColor: p.prefs.edgeColor === "section" ? "neutral" : "section" })} />
           <MenuItem label={`${check(p.prefs.showDeps)}  ${t("menu.view.showDeps")}`} onClick={() => p.onPrefsChange({ showDeps: !p.prefs.showDeps })} />
           <MenuItem label={`${check(p.prefs.hoverHighlight)}  ${t("menu.view.hoverPaths")}`} onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} />
@@ -170,7 +170,7 @@ export function TopBar(p: TopBarProps) {
         <span style={{ flex: 1 }} />
         <Button onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} active={p.prefs.hoverHighlight} title={t("tip.paths")}>✦ {t("quickbar.paths")}</Button>
         <Button onClick={() => p.onPrefsChange({ autoGrowBands: !p.prefs.autoGrowBands })} active={p.prefs.autoGrowBands} title={t("tip.autoGrow")}>⇲ {t("quickbar.autoGrow")}</Button>
-        <Button onClick={() => p.onPrefsChange({ hideMissing: !p.prefs.hideMissing })} active={p.prefs.hideMissing} title={t("tip.hideMissing")}>{t("quickbar.hideMissing")}</Button>
+        <Button onClick={() => p.onPrefsChange({ dimMissing: !p.prefs.dimMissing })} active={p.prefs.dimMissing} title={t("tip.dimMissing")}>{t("quickbar.dimMissing")}</Button>
         <Button onClick={p.onOpenPrefs} title={t("tip.prefs")}>⚙</Button>
         <Button onClick={p.onToggleTheme} title={t("tip.theme")}>◐</Button>
       </div>

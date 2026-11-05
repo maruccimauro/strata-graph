@@ -636,7 +636,7 @@ export function Editor({
     { label: t("menu.view.hoverPaths"), checked: prefs.hoverHighlight, onClick: () => setPrefs({ hoverHighlight: !prefs.hoverHighlight }) },
     { label: t("menu.view.autoGrow"), checked: prefs.autoGrowBands, onClick: () => setPrefs({ autoGrowBands: !prefs.autoGrowBands }) },
     { label: t("menu.view.showDeps"), checked: prefs.showDeps, onClick: () => setPrefs({ showDeps: !prefs.showDeps }) },
-    { label: t("menu.view.hideMissing"), checked: prefs.hideMissing, onClick: () => setPrefs({ hideMissing: !prefs.hideMissing }) },
+    { label: t("menu.view.dimMissing"), checked: prefs.dimMissing, onClick: () => setPrefs({ dimMissing: !prefs.dimMissing }) },
     { label: "", onClick: () => {}, separator: true },
     { label: t("menu.view.theme"), onClick: toggleTheme },
     { label: t("menu.edit.prefs"), onClick: () => setPrefsOpen(true) },
