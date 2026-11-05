@@ -21,6 +21,10 @@ export interface TopBarActions {
   canRedo: boolean;
   prefs: Prefs;
   onPrefsChange: (p: Partial<Prefs>) => void;
+  /** count of nodes under a relational-integrity alert (N-44); 0 hides the badge. */
+  alertCount: number;
+  /** open the Rebuild relations panel. */
+  onOpenRebuild: () => void;
 }
 
 export interface TopBarProps extends TopBarActions {
@@ -146,10 +150,39 @@ export function TopBar(p: TopBarProps) {
             label={t("menu.view.layers", { value: t(`layer.${p.prefs.layerOrder}`) })}
             onClick={() => p.onPrefsChange({ layerOrder: nextLayerOrder(p.prefs.layerOrder) })}
           />
+          <MenuItem
+            label={t("menu.view.rebuild")}
+            disabled={p.alertCount === 0}
+            title={p.alertCount === 0 ? t("menu.view.rebuild.none") : undefined}
+            onClick={() => { close(); p.onOpenRebuild(); }}
+          />
           <MenuItem label={t("menu.view.theme")} onClick={() => { close(); p.onToggleTheme(); }} />
         </Menu>
 
         <span style={{ flex: 1 }} />
+        {p.alertCount > 0 && (
+          <button
+            key={p.alertCount}
+            className="strata-badge-flash"
+            onClick={p.onOpenRebuild}
+            title={t("badge.alerts.tip")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: ".68rem",
+              fontWeight: 700,
+              padding: "2px 9px",
+              borderRadius: 999,
+              border: "1px solid var(--ghost)",
+              background: "rgba(192,57,43,.14)",
+              color: "var(--ghost)",
+              cursor: "pointer",
+            }}
+          >
+            ⛓️‍💥 {t("badge.alerts", { count: p.alertCount })}
+          </button>
+        )}
         <span
           title={connected ? t("badge.connected.tip") : t("badge.static.tip")}
           style={{ fontSize: ".68rem", fontWeight: 700, padding: "2px 9px", borderRadius: 999, background: connected ? "rgba(31,138,76,.15)" : "var(--line)", color: connected ? "#1f8a4c" : MUTED }}
@@ -171,6 +204,11 @@ export function TopBar(p: TopBarProps) {
         <Button onClick={p.onExportPng} title={t("tip.png")}>⇩ PNG</Button>
         <Button onClick={p.onFit} title={t("tip.fit")}>⤢ {t("quickbar.fit")}</Button>
         <Button onClick={p.onResetLayout} title={t("tip.reset")}>⟳ {t("quickbar.reset")}</Button>
+        {p.alertCount > 0 && (
+          <Button onClick={p.onOpenRebuild} active title={t("tip.rebuild")} style={{ borderColor: "var(--ghost)", color: "var(--ghost)" }}>
+            ⛓️‍💥 {t("quickbar.rebuild")}
+          </Button>
+        )}
         <span style={{ flex: 1 }} />
         <Button onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} active={p.prefs.hoverHighlight} title={t("tip.paths")}>✦ {t("quickbar.paths")}</Button>
         <Button onClick={() => p.onPrefsChange({ autoGrowBands: !p.prefs.autoGrowBands })} active={p.prefs.autoGrowBands} title={t("tip.autoGrow")}>⇲ {t("quickbar.autoGrow")}</Button>

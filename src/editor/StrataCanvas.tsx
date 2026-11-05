@@ -23,7 +23,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import type { GraphModel, GraphNode } from "../core/types";
-import type { Prefs, BandBoxMap } from "./api";
+import type { Prefs, BandBoxMap, AlertSeverity } from "./api";
 import { applyDefaultLayout, packLayout, GEO } from "../core/layout";
 import { BandNode } from "./nodes/BandNode";
 import { SectionNode } from "./nodes/SectionNode";
@@ -69,6 +69,10 @@ export interface StrataCanvasProps {
   onSelectNode: (id: string | null) => void;
   selectedEdge: string | null;
   onSelectEdge: (id: string | null) => void;
+  /** nodes under a relational-integrity alert (N-44), with worst severity. */
+  alerts: Map<string, AlertSeverity>;
+  /** dotted ghost bridges previewed while the Rebuild relations panel is open. */
+  ghostBridges: { source: string; target: string }[];
   retarget: Retarget | null;
   onRetargetPick: (nodeId: string) => void;
   onRetargetCancel: () => void;
@@ -79,7 +83,7 @@ export interface StrataCanvasProps {
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, frozenBands, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
+  const { model, prefs, themeKey, frozenBands, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, alerts, ghostBridges, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
   const rf = useReactFlow();
   // Cursor position in flow coordinates while a retarget is in progress, so the
   // rubber-band line can follow it from the fixed endpoint.
@@ -113,12 +117,12 @@ export function StrataCanvas(props: StrataCanvasProps) {
   // Nodes depend only on the real selection, never on hover, so hovering a node
   // rebuilds edges only (no node flicker) and highlights edges, not the node.
   const rfNodes = useMemo(
-    () => buildNodes(info, selected, prefs),
-    [info, selected, prefs.dimMissing, prefs.dimOpacity, prefs.layerOrder, themeKey],
+    () => buildNodes(info, selected, prefs, alerts),
+    [info, selected, prefs.dimMissing, prefs.dimOpacity, prefs.layerOrder, alerts, themeKey],
   );
   const rfEdges = useMemo(
-    () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget?.edgeId ?? null),
-    [info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget, themeKey],
+    () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget?.edgeId ?? null, ghostBridges),
+    [info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget, ghostBridges, themeKey],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes);
@@ -661,8 +665,10 @@ const EDGE_FLOOR = (lo: Prefs["layerOrder"]): number => (lo === "edges" ? 1000 :
 const LAYER_ACTIVE = 20;
 
 /** Nodes depend only on the real selection: a selected node dims the unrelated
- *  nodes and marks its own chain. Hover never affects nodes. */
-function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs): Node[] {
+ *  nodes and marks its own chain. Hover never affects nodes. A relational-integrity
+ *  alert (N-44) is an independent channel: it marks the node, overrides any dim so
+ *  the pulse stays visible, and raises its layer. */
+function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs, alerts: Map<string, AlertSeverity>): Node[] {
   const { laid, sectionHue, bands, up, down, auto, manual } = info;
   const anc = selected ? reach(up, selected) : new Set<string>();
   const desc = selected ? reach(down, selected) : new Set<string>();
@@ -692,16 +698,23 @@ function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs): Nod
   }
   for (const n of laid.nodes) {
     const hue = n.sectionId ? (sectionHue.get(n.sectionId) ?? 210) : 210;
+    const alert = alerts.get(n.id);
     // Two independent fades can apply: not-generated nodes faded by the dim-missing
     // preference, and unrelated nodes faded while a selection is focused. The more
-    // transparent of the two wins.
+    // transparent of the two wins. An alerted node (N-44) ignores both so its red
+    // pulse stays visible (decision B1).
     const missDim = prefs.dimMissing && n.status === "missing" ? prefs.dimOpacity : undefined;
     const selDim = dimmed(n.id) ? 0.18 : undefined;
     const op =
-      missDim !== undefined && selDim !== undefined ? Math.min(missDim, selDim) : missDim ?? selDim;
+      alert !== undefined
+        ? undefined
+        : missDim !== undefined && selDim !== undefined
+          ? Math.min(missDim, selDim)
+          : missDim ?? selDim;
     const dim = op !== undefined ? { opacity: op } : undefined;
-    // Layer order: node floor for the chosen mode, raised when this node is selected.
-    const zBase = NODE_FLOOR(prefs.layerOrder) + (selected === n.id ? LAYER_ACTIVE : 0);
+    // Layer order: node floor for the chosen mode, raised when this node is
+    // selected or under an alert (so the pulse is never hidden behind a band/edge).
+    const zBase = NODE_FLOOR(prefs.layerOrder) + (selected === n.id || alert !== undefined ? LAYER_ACTIVE : 0);
     if (n.kind === "section") {
       const a = auto.get(n.sectionId!) ?? { gen: 0, total: 0 };
       rfNodes.push({
@@ -730,7 +743,7 @@ function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs): Nod
         id: n.id,
         type: "doc",
         position: n.position!,
-        data: { label: n.label, hue, status: n.status, origin: n.origin, hl: hlOf(n.id), locked: n.locked, dueAt: n.dueAt },
+        data: { label: n.label, hue, status: n.status, origin: n.origin, hl: hlOf(n.id), alert, locked: n.locked, dueAt: n.dueAt },
         draggable: !n.locked,
         zIndex: zBase,
         style: dim,
@@ -752,6 +765,7 @@ function buildEdges(
   hoverEdge: string | null,
   onAnchorGrab: (id: string, source: string, target: string, end: "source" | "target", x: number, y: number) => void,
   retargetingId: string | null,
+  ghostBridges: { source: string; target: string }[],
 ): Edge[] {
   const { laid, sectionHue, byId, up, down, incoming } = info;
   // class for an edge: selected (glow marker) and/or retargeting (blinks while
@@ -848,6 +862,27 @@ function buildEdges(
         strokeWidth: 1.2,
         opacity: prefs.dimMissing && n.status === "missing" ? prefs.dimOpacity : dimmed(n.id) ? 0.05 : 0.22,
       },
+    });
+  }
+
+  // Ghost bridges (N-44): view-only dotted previews of the prerequisite ->
+  // dependent reconnections offered while the Rebuild relations panel is open.
+  // They are not part of the model; they ride on top so they read clearly.
+  for (const g of ghostBridges) {
+    if (!byId.has(g.source) || !byId.has(g.target)) continue;
+    const col = ghostCol();
+    rfEdges.push({
+      id: `ghost:${g.source}->${g.target}`,
+      type: "floating",
+      source: g.source,
+      target: g.target,
+      selectable: false,
+      focusable: false,
+      className: "edge-ghost-bridge",
+      zIndex: EDGE_FLOOR(prefs.layerOrder) + 1 + LAYER_ACTIVE,
+      style: { stroke: col, strokeWidth: 2, strokeDasharray: "4 4", opacity: 0.9 },
+      data: { kind: "dependency" },
+      markerEnd: { type: MarkerType.ArrowClosed, color: col },
     });
   }
 

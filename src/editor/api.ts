@@ -56,6 +56,35 @@ export const DEFAULT_PREFS: Prefs = {
 
 export type Orientation = Prefs["layout"];
 export type PosMap = Record<string, { x: number; y: number }>;
+
+/** Role of a node relative to a deleted neighbor: it was a prerequisite
+ *  (upstream of the removed node) or a dependent (downstream). */
+export type AlertRole = "prereq" | "dependent";
+/** orphan: the node has no remaining dependency edges after the deletion ·
+ *  partial: it lost the link through the removed node but keeps others. */
+export type AlertSeverity = "orphan" | "partial";
+
+/** A relational-integrity alert raised when a node is deleted: the direct
+ *  dependency neighbors that lost their bridge through it (N-44). Persisted in
+ *  ViewerState so it survives reloads until resolved; undo reverts it whole. */
+export interface BreakEvent {
+  /** unique id of the deletion event (groups its affected neighbors). */
+  id: string;
+  /** epoch ms of the deletion, for ordering and the "moment" pulse. */
+  at: number;
+  /** label of the removed node, shown in the banner and the rebuild panel. */
+  removedLabel: string;
+  /** rebuildable prerequisite -> dependent bridges not taken at delete time;
+   *  each is resolved by reconnecting or discarding it. */
+  pairs: { source: string; target: string }[];
+  /** affected neighbor ids with no bridge candidate (a lone prerequisite or a
+   *  lone dependent); each is resolved only by unlinking it. */
+  lonely: string[];
+  /** per affected node id: how it relates to the removed node and its severity. */
+  info: Record<string, { role: AlertRole; severity: AlertSeverity }>;
+  /** the banner is hidden for this event (the nodes stay marked). */
+  hidden?: boolean;
+}
 /** Frozen band boxes per section, captured while auto-grow is on and reused to
  *  freeze the layout when it is off (so turning it off locks the bands in place). */
 export type BandBoxMap = Record<string, { x: number; y: number; width: number; height: number }>;
@@ -73,6 +102,11 @@ export interface ViewerState {
   manualEdges?: GraphEdge[];
   /** auto edge ids the user deleted (kept out on reload). */
   removedEdges?: string[];
+  /** auto node ids the user deleted (kept out on reload; manual nodes are
+   *  dropped from `manualNodes` instead). Only undo restores them. */
+  removedNodes?: string[];
+  /** active relational-integrity alerts raised by node deletions (see BreakEvent). */
+  alerts?: BreakEvent[];
   /** per-node section reassignments. */
   sectionOverrides?: Record<string, string>;
   /** per-section hue overrides (0-360) over the built-in model's colors. */

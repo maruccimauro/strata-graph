@@ -93,6 +93,60 @@ body {
   transform: scale(1.4);
   transition: transform 0.1s ease;
 }
+/* relational-integrity alert (N-44): a node that lost a dependency bridge when a
+   neighbor was deleted pulses a red ring. Steady and gentle so it does not tire
+   (the "moment" is carried by the status-bar badge, which flashes on arrival).
+   Orphaned nodes (no links left) pulse stronger than partially affected ones.
+   The ring is drawn with box-shadow, so it rides along with the node as it moves
+   and composes over the selection border instead of replacing it. */
+@keyframes strata-alert-partial {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ghost) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 7px 3px color-mix(in srgb, var(--ghost) 55%, transparent);
+  }
+}
+@keyframes strata-alert-orphan {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ghost) 78%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 11px 5px color-mix(in srgb, var(--ghost) 78%, transparent);
+  }
+}
+.strata-alert-partial {
+  animation: strata-alert-partial 1.8s ease-in-out infinite;
+}
+.strata-alert-orphan {
+  animation: strata-alert-orphan 1.5s ease-in-out infinite;
+}
+/* the status-bar broken-link badge flashes briefly when alerts arrive, then
+   settles to a stable marker (so repeated deletions do not keep it screaming). */
+@keyframes strata-badge-flash {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ghost) 70%, transparent);
+  }
+  30% {
+    transform: scale(1.12);
+    box-shadow: 0 0 10px 4px color-mix(in srgb, var(--ghost) 70%, transparent);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.strata-badge-flash {
+  animation: strata-badge-flash 0.6s ease-out 3;
+}
+/* dotted ghost of a rebuildable bridge shown in the Rebuild relations mode */
+.react-flow__edge.edge-ghost-bridge .react-flow__edge-path {
+  animation: strata-edge-blink 1.4s ease-in-out infinite;
+}
+
 /* the edge whose end is being retargeted blinks to show it is the one moving */
 @keyframes strata-edge-blink {
   0%,

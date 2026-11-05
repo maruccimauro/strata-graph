@@ -3,8 +3,15 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { NodeStatus, Origin } from "../../core/types";
 import { accent, docBg, GHOST, INK, MUTED, UP, DOWN } from "../theme";
 import { GEO } from "../../core/layout";
+import { t } from "../i18n";
 
 export type Highlight = "sel" | "anc" | "desc" | undefined;
+
+/** Relational-integrity alert on a node (N-44): it lost a dependency bridge when
+ *  a neighbor was deleted. "orphan" = no dependency edges left; "partial" = it
+ *  kept others. Drives a red pulse and a broken-link badge, composed over any
+ *  selection highlight (a separate channel from `hl`). */
+export type AlertMark = "orphan" | "partial" | undefined;
 
 export interface DocData {
   label: string;
@@ -12,6 +19,7 @@ export interface DocData {
   status: NodeStatus;
   origin: Origin;
   hl?: Highlight;
+  alert?: AlertMark;
   locked?: boolean;
   dueAt?: number;
   [key: string]: unknown;
@@ -40,8 +48,10 @@ function DocNodeImpl({ data, selected }: NodeProps) {
   const emphasized = selected || d.hl === "sel";
   const border = hlColor ?? (missing ? GHOST : accent(d.hue));
   const bw = emphasized ? 3 : d.hl ? 2.4 : 1.6;
+  const alerted = d.alert !== undefined;
   return (
     <div
+      className={alerted ? `strata-alert strata-alert-${d.alert}` : undefined}
       style={{
         width: GEO.DOC_W,
         height: GEO.DOC_H,
@@ -53,6 +63,14 @@ function DocNodeImpl({ data, selected }: NodeProps) {
         position: "relative",
       }}
     >
+      {alerted && (
+        <span
+          title={d.alert === "orphan" ? t("alert.node.orphan") : t("alert.node.partial")}
+          style={{ position: "absolute", top: -9, left: -9, fontSize: 12, lineHeight: 1, filter: "drop-shadow(0 1px 1px rgba(0,0,0,.4))" }}
+        >
+          ⛓️‍💥
+        </span>
+      )}
       <div
         style={{
           fontSize: 11.5,

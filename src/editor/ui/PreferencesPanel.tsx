@@ -215,6 +215,7 @@ function Segmented({ label, active, onClick }: { label: string; active: boolean;
 
 function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partial<Prefs>) => void }) {
   return (
+    <>
     <Group title={t("prefs.display.title")}>
       <Field label={t("menu.view.dimMissing")} hint={t("prefs.dimMissing.hint")}>
         <input type="checkbox" checked={prefs.dimMissing} onChange={(e) => onChange({ dimMissing: e.target.checked })} />
@@ -254,6 +255,10 @@ function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partia
         </div>
       </Field>
     </Group>
+    <Group title={t("prefs.integrity.title")}>
+      <p style={{ margin: 0, fontSize: ".76rem", color: MUTED, lineHeight: 1.5 }}>{t("prefs.integrity.help")}</p>
+    </Group>
+    </>
   );
 }
 

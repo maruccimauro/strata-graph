@@ -8,6 +8,9 @@ import { NodeOverlay } from "./NodeOverlay";
 import { NodeEdgesPanel } from "./NodeEdgesPanel";
 import { ConnectPanel, type Direction } from "./ConnectPanel";
 import { NewModelPanel } from "./NewModelPanel";
+import { DeleteNodeDialog } from "./DeleteNodeDialog";
+import { RebuildRelationsPanel } from "./RebuildRelationsPanel";
+import { RelationAlertBanner } from "./RelationAlertBanner";
 import { TopBar } from "./ui/TopBar";
 import { ContextMenu, type ContextMenuItem } from "./ui/ContextMenu";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
@@ -15,7 +18,8 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
-import { persist, pickFile, openPath, DEFAULT_PREFS, nextLayerOrder, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap } from "./api";
+import { analyzeBreak, buildBreakEvent, alertedNodes, normalizeEvent, type BreakAnalysis } from "./integrity";
+import { persist, pickFile, openPath, DEFAULT_PREFS, nextLayerOrder, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap, type BreakEvent } from "./api";
 import { t, setLang } from "./i18n";
 import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
 import { toSgm, fromSgm } from "../core/sgm";
@@ -70,6 +74,10 @@ export function Editor({
   // guards replacing a graph that has unsaved work.
   const [newModelOpen, setNewModelOpen] = useState(false);
   const [pendingLoad, setPendingLoad] = useState<{ model: GraphModel; startup?: Startup } | null>(null);
+  // Relational integrity (N-44): the delete confirmation (with bridge preview)
+  // and the focused Rebuild relations panel.
+  const [deleteDialog, setDeleteDialog] = useState<{ node: GraphNode; analysis: BreakAnalysis } | null>(null);
+  const [rebuildOpen, setRebuildOpen] = useState(false);
   // Edge retarget in progress (N-25): one endpoint follows the cursor while the
   // other stays fixed. Keeps the original overlay anchor so Esc can reopen it.
   const [retarget, setRetarget] = useState<
@@ -83,6 +91,11 @@ export function Editor({
   // today). Mirrors the theme pattern: a cheap, synchronous read from prefs.
   setLang(prefs.lang);
   const model = useMemo(() => buildRenderModel(graph, state), [graph, state]);
+  // Active relational-integrity alerts: the node -> severity map that drives the
+  // pulse, and the dotted ghost bridges previewed while the rebuild panel is open.
+  const alerts = useMemo(() => state.alerts ?? [], [state.alerts]);
+  const alertMap = useMemo(() => alertedNodes(alerts), [alerts]);
+  const ghostBridges = useMemo(() => (rebuildOpen ? alerts.flatMap((ev) => ev.pairs) : []), [rebuildOpen, alerts]);
   const labelOf = useCallback((id: string) => model.nodes.find((n) => n.id === id)?.label ?? id, [model]);
   const infoOf = useCallback(
     (id: string) => {
@@ -216,14 +229,138 @@ export function Editor({
     if (name) addNodeAt({ label: name, kind: "doc", origin: "manual", status: "generated" });
   }, [connected, addNodeAt]);
 
-  const onDeleteNode = useCallback(
-    (id: string) =>
+  // ----- node deletion + relational integrity (N-44) -----
+  const bridgeId = (source: string, target: string) => `manual:${source}->${target}:dependency`;
+  const addBridge = useCallback(
+    (manualEdges: GraphEdge[], source: string, target: string): GraphEdge[] => {
+      const id = bridgeId(source, target);
+      if (manualEdges.some((e) => e.id === id)) return manualEdges;
+      return [...manualEdges, { id, source, target, kind: "dependency", origin: "manual", via: "manual" }];
+    },
+    [],
+  );
+
+  /** Apply a node deletion: drop the node (manual list or the removedNodes set
+   *  for auto nodes), drop its manual edges, create the accepted bridges, and
+   *  register the break event for the neighbors left unresolved. One commit, so
+   *  undo reverts the node, its edges, the bridges and the alert together. */
+  const performDelete = useCallback(
+    (node: GraphNode, analysis: BreakAnalysis, acceptedKeys: Set<string>) => {
+      const bridges = analysis.pairs.filter((p) => acceptedKeys.has(`${p.source}\u0000${p.target}`));
+      const event = buildBreakEvent(analysis, node.label, acceptedKeys, Date.now());
+      commit((s) => {
+        const isManual = (s.manualNodes ?? []).some((n) => n.id === node.id);
+        const manualNodes = isManual ? (s.manualNodes ?? []).filter((n) => n.id !== node.id) : s.manualNodes ?? [];
+        const removedNodes = isManual ? s.removedNodes ?? [] : [...(s.removedNodes ?? []), node.id];
+        // Edges touching the node are dropped at render (its endpoint is gone);
+        // still prune its manual edges from state so none dangle in storage.
+        let manualEdges = (s.manualEdges ?? []).filter((e) => e.source !== node.id && e.target !== node.id);
+        for (const b of bridges) manualEdges = addBridge(manualEdges, b.source, b.target);
+        const nextAlerts = event ? [...(s.alerts ?? []), event] : s.alerts ?? [];
+        return { ...s, manualNodes, removedNodes, manualEdges, alerts: nextAlerts };
+      });
+      setSelectedNode((cur) => (cur === node.id ? null : cur));
+      setOverlay(null);
+      setDeleteDialog(null);
+    },
+    [commit, addBridge],
+  );
+
+  /** Entry point for deleting a node: analyze the relational impact. When the
+   *  node has dependency neighbors, open the confirmation (with bridge preview);
+   *  otherwise delete straight away (nothing to rebuild). */
+  const onRequestDeleteNode = useCallback(
+    (id: string) => {
+      const node = model.nodes.find((n) => n.id === id);
+      if (!node) return;
+      const analysis = analyzeBreak(model, id);
+      if (Object.keys(analysis.info).length === 0) {
+        performDelete(node, analysis, new Set());
+        return;
+      }
+      setOverlay(null);
+      setDeleteDialog({ node, analysis });
+    },
+    [model, performDelete],
+  );
+
+  /** Update one event in place and drop it if nothing is left to resolve. */
+  const updateEvent = useCallback(
+    (eventId: string, fn: (ev: BreakEvent) => BreakEvent) =>
       commit((s) => ({
         ...s,
-        manualNodes: (s.manualNodes ?? []).filter((n) => n.id !== id),
-        manualEdges: (s.manualEdges ?? []).filter((e) => e.source !== id && e.target !== id),
+        alerts: (s.alerts ?? []).flatMap((ev) => (ev.id === eventId ? [normalizeEvent(fn(ev))].filter((x): x is BreakEvent => x !== null) : [ev])),
       })),
     [commit],
+  );
+
+  const reconnectPair = useCallback(
+    (eventId: string, pair: { source: string; target: string }) => {
+      commit((s) => ({
+        ...s,
+        manualEdges: addBridge(s.manualEdges ?? [], pair.source, pair.target),
+        alerts: (s.alerts ?? []).flatMap((ev) => {
+          if (ev.id !== eventId) return [ev];
+          const next = { ...ev, pairs: ev.pairs.filter((p) => !(p.source === pair.source && p.target === pair.target)) };
+          return [normalizeEvent(next)].filter((x): x is BreakEvent => x !== null);
+        }),
+      }));
+    },
+    [commit, addBridge],
+  );
+  const discardPair = useCallback(
+    (eventId: string, pair: { source: string; target: string }) =>
+      updateEvent(eventId, (ev) => ({ ...ev, pairs: ev.pairs.filter((p) => !(p.source === pair.source && p.target === pair.target)) })),
+    [updateEvent],
+  );
+  const reconnectAllEvent = useCallback(
+    (eventId: string) => {
+      commit((s) => {
+        const ev = (s.alerts ?? []).find((e) => e.id === eventId);
+        if (!ev) return s;
+        let manualEdges = s.manualEdges ?? [];
+        for (const p of ev.pairs) manualEdges = addBridge(manualEdges, p.source, p.target);
+        return {
+          ...s,
+          manualEdges,
+          alerts: (s.alerts ?? []).flatMap((e) => (e.id === eventId ? [normalizeEvent({ ...e, pairs: [] })].filter((x): x is BreakEvent => x !== null) : [e])),
+        };
+      });
+    },
+    [commit, addBridge],
+  );
+  /** Unlink a neighbor from one event: drop it from lonely and discard the pairs
+   *  touching it (mark it resolved on purpose). */
+  const unlinkNeighbor = useCallback(
+    (eventId: string, nodeId: string) =>
+      updateEvent(eventId, (ev) => ({
+        ...ev,
+        lonely: ev.lonely.filter((x) => x !== nodeId),
+        pairs: ev.pairs.filter((p) => p.source !== nodeId && p.target !== nodeId),
+      })),
+    [updateEvent],
+  );
+  /** Unlink a node from every event it appears in (used from its overlay/menu). */
+  const unlinkNodeEverywhere = useCallback(
+    (nodeId: string) =>
+      commit((s) => ({
+        ...s,
+        alerts: (s.alerts ?? []).flatMap((ev) => {
+          if (!ev.lonely.includes(nodeId) && !ev.pairs.some((p) => p.source === nodeId || p.target === nodeId)) return [ev];
+          const next = { ...ev, lonely: ev.lonely.filter((x) => x !== nodeId), pairs: ev.pairs.filter((p) => p.source !== nodeId && p.target !== nodeId) };
+          return [normalizeEvent(next)].filter((x): x is BreakEvent => x !== null);
+        }),
+      })),
+    [commit],
+  );
+  const resolveEvent = useCallback(
+    (eventId: string) => commit((s) => ({ ...s, alerts: (s.alerts ?? []).filter((e) => e.id !== eventId) })),
+    [commit],
+  );
+  /** Hide one event's banner (nodes stay marked). View-only, so not undoable. */
+  const hideEvent = useCallback(
+    (eventId: string) => patch((s) => ({ ...s, alerts: (s.alerts ?? []).map((e) => (e.id === eventId ? { ...e, hidden: true } : e)) })),
+    [patch],
   );
 
   const onSetSection = useCallback(
@@ -507,6 +644,8 @@ export function Editor({
       s.manualNodes?.length ||
         s.manualEdges?.length ||
         s.removedEdges?.length ||
+        s.removedNodes?.length ||
+        s.alerts?.length ||
         (s.pos && Object.values(s.pos).some((m) => m && Object.keys(m).length)) ||
         (s.sectionOverrides && Object.keys(s.sectionOverrides).length) ||
         (s.sectionHues && Object.keys(s.sectionHues).length) ||
@@ -596,7 +735,7 @@ export function Editor({
         // overlay); then any open overlay or panel closes; then the selection clears.
         if (retarget) {
           cancelRetarget();
-        } else if (overlay || edgeOverlay || prefsOpen || pending || connectFrom || retargetList || edgesPanel) {
+        } else if (overlay || edgeOverlay || prefsOpen || pending || connectFrom || retargetList || edgesPanel || deleteDialog || rebuildOpen) {
           setOverlay(null);
           setEdgeOverlay(null);
           setPrefsOpen(false);
@@ -604,6 +743,8 @@ export function Editor({
           setConnectFrom(null);
           setRetargetList(null);
           setEdgesPanel(null);
+          setDeleteDialog(null);
+          setRebuildOpen(false);
         } else {
           setSelectedNode(null);
           setSelectedEdge(null);
@@ -624,7 +765,7 @@ export function Editor({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom, retargetList, edgesPanel, retarget, cancelRetarget]);
+  }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom, retargetList, edgesPanel, retarget, cancelRetarget, deleteDialog, rebuildOpen]);
 
   // ----- context menus (right-click), per the configurability policy -----
   const paneMenu = (): ContextMenuItem[] => [
@@ -638,6 +779,13 @@ export function Editor({
     { label: t("menu.view.showDeps"), checked: prefs.showDeps, onClick: () => setPrefs({ showDeps: !prefs.showDeps }) },
     { label: t("menu.view.dimMissing"), checked: prefs.dimMissing, onClick: () => setPrefs({ dimMissing: !prefs.dimMissing }) },
     { label: t("menu.view.layers", { value: t(`layer.${prefs.layerOrder}`) }), onClick: () => setPrefs({ layerOrder: nextLayerOrder(prefs.layerOrder) }) },
+    ...(alerts.length
+      ? [
+          { label: "", onClick: () => {}, separator: true },
+          { label: t("ctx.rebuild"), onClick: () => setRebuildOpen(true) },
+          { label: t("ctx.hideAlerts"), onClick: () => alerts.forEach((ev) => hideEvent(ev.id)) },
+        ]
+      : []),
     { label: "", onClick: () => {}, separator: true },
     { label: t("menu.view.theme"), onClick: toggleTheme },
     { label: t("menu.edit.prefs"), onClick: () => setPrefsOpen(true) },
@@ -653,9 +801,14 @@ export function Editor({
         { label: t("ctx.manageEdges"), onClick: () => { setOverlay(null); setEdgesPanel({ node, x, y }); } },
         { label: t("ctx.addComment"), onClick: () => onAddComment(node.id) },
       );
-      if (node.origin === "manual") {
-        items.push({ label: "", onClick: () => {}, separator: true }, { label: t("common.delete"), danger: true, onClick: () => onDeleteNode(node.id) });
+      if (alertMap.has(node.id)) {
+        items.push(
+          { label: "", onClick: () => {}, separator: true },
+          { label: t("ctx.rebuild"), onClick: () => setRebuildOpen(true) },
+          { label: t("ctx.unlinkAlert"), onClick: () => unlinkNodeEverywhere(node.id) },
+        );
       }
+      items.push({ label: "", onClick: () => {}, separator: true }, { label: t("common.delete"), danger: true, onClick: () => onRequestDeleteNode(node.id) });
     }
     return items;
   };
@@ -702,9 +855,11 @@ export function Editor({
         onUndo={undo}
         onRedo={redo}
         onPrefsChange={setPrefs}
+        alertCount={alertMap.size}
+        onOpenRebuild={() => setRebuildOpen(true)}
       />
       <div
-        style={{ flex: 1, minHeight: 0 }}
+        style={{ flex: 1, minHeight: 0, position: "relative" }}
         onContextMenu={(e) => e.preventDefault()}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -747,6 +902,8 @@ export function Editor({
           onSelectNode={setSelectedNode}
           selectedEdge={selectedEdge}
           onSelectEdge={setSelectedEdge}
+          alerts={alertMap}
+          ghostBridges={ghostBridges}
           retarget={retarget ? ({ edgeId: retarget.edgeId, movingEnd: retarget.movingEnd, fixedNodeId: retarget.fixedNodeId } as Retarget) : null}
           onRetargetPick={onRetargetPick}
           onRetargetCancel={cancelRetarget}
@@ -755,6 +912,7 @@ export function Editor({
           onNodeContextMenu={(node, x, y) => setCtxMenu({ x, y, items: nodeMenu(node, x, y) })}
           onEdgeContextMenu={(id, source, target, x, y) => setCtxMenu({ x, y, items: edgeMenu(id, source, target, x, y) })}
         />
+        <RelationAlertBanner events={alerts} onRebuild={() => setRebuildOpen(true)} onHide={hideEvent} />
       </div>
 
       {overlay && (
@@ -776,10 +934,9 @@ export function Editor({
             setEdgesPanel({ node, x: overlay.x, y: overlay.y });
             setOverlay(null);
           }}
-          onDelete={(id) => {
-            onDeleteNode(id);
-            setOverlay(null);
-          }}
+          onDelete={onRequestDeleteNode}
+          alerted={alertMap.has(overlay.node.id)}
+          onUnlinkAlert={unlinkNodeEverywhere}
         />
       )}
 
@@ -970,6 +1127,29 @@ export function Editor({
             {t("bar.unlockAll")}
           </Button>
         </div>
+      )}
+
+      {deleteDialog && (
+        <DeleteNodeDialog
+          node={deleteDialog.node}
+          analysis={deleteDialog.analysis}
+          labelOf={labelOf}
+          onConfirm={(accepted) => performDelete(deleteDialog.node, deleteDialog.analysis, accepted)}
+          onCancel={() => setDeleteDialog(null)}
+        />
+      )}
+
+      {rebuildOpen && (
+        <RebuildRelationsPanel
+          alerts={alerts}
+          labelOf={labelOf}
+          onReconnectPair={reconnectPair}
+          onDiscardPair={discardPair}
+          onUnlink={unlinkNeighbor}
+          onReconnectAll={reconnectAllEvent}
+          onResolveEvent={resolveEvent}
+          onClose={() => setRebuildOpen(false)}
+        />
       )}
 
       {ctxMenu && <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxMenu.items} onClose={() => setCtxMenu(null)} />}

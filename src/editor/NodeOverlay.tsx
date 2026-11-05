@@ -17,6 +17,10 @@ export interface NodeOverlayProps {
   onConnectPanel: (node: GraphNode) => void;
   onManageEdges: (node: GraphNode) => void;
   onDelete: (id: string) => void;
+  /** whether this node is under a relational-integrity alert (N-44). */
+  alerted?: boolean;
+  /** clear this node from every alert it is part of (mark resolved on purpose). */
+  onUnlinkAlert: (id: string) => void;
 }
 
 function Flag({ text, tone }: { text: string; tone: "auto" | "manual" | "gen" | "miss" | "comment" }) {
@@ -103,7 +107,7 @@ function Countdown({ dueAt }: { dueAt: number }) {
   );
 }
 
-export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, onSetSection, onSetNodeMeta, onAddComment, onConnectPanel, onManageEdges, onDelete }: NodeOverlayProps) {
+export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, onSetSection, onSetNodeMeta, onAddComment, onConnectPanel, onManageEdges, onDelete, alerted, onUnlinkAlert }: NodeOverlayProps) {
   const isSection = node.kind === "section";
   const isComment = node.kind === "comment";
   const x = Math.min(at.x + 12, window.innerWidth - 330);
@@ -121,7 +125,8 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
         {!isSection && <IconAction icon="🔗" title={t("overlay.connect.tip")} onClick={() => onConnectPanel(node)} />}
         {!isSection && <IconAction icon="⛓" title={t("overlay.edges.tip")} onClick={() => onManageEdges(node)} />}
         {!isSection && <IconAction icon="🏷️" title={t("overlay.comment.tip")} onClick={() => onAddComment(node.id)} />}
-        {node.origin === "manual" && <IconAction icon="🗑" title={t("overlay.delete.tip")} danger onClick={() => onDelete(node.id)} />}
+        {alerted && <IconAction icon="✔" title={t("alert.unlink.tip")} onClick={() => onUnlinkAlert(node.id)} />}
+        {!isSection && <IconAction icon="🗑" title={t("overlay.delete.tip")} danger onClick={() => onDelete(node.id)} />}
       </div>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
@@ -135,6 +140,7 @@ export function NodeOverlay({ node, at, sections, connected, onClose, onOpen, on
           </>
         )}
         {node.locked && <Flag text={t("flag.locked")} tone="manual" />}
+        {alerted && <Flag text={t("flag.alert")} tone="miss" />}
       </div>
 
       {isComment && node.note && <div style={{ fontSize: ".82rem", marginBottom: 8 }}>{node.note}</div>}
