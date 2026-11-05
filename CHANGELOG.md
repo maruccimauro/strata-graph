@@ -28,6 +28,11 @@ history; the project carried no tagged releases before this file was introduced.
 
 - Preference "Not-generated opacity" (default 10 percent) to set how faded
   not-generated nodes are while dimming is on.
+- Layer order control (default nodes on top): choose whether nodes or edges draw on
+  top, or let each compete freely, so a crossed edge is no longer trapped under
+  another. The hovered or selected node or edge rises within its layer either way.
+  Available in Preferences, the View menu, the background context menu and a
+  "⿻ Layers" quick-bar button.
 
 ## [0.8.0] - 2026-11-05
 

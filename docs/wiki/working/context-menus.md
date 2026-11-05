@@ -12,6 +12,7 @@ Right-click empty space (or a section band) for graph-wide actions:
 
 - **Add node**, **Fit to screen**, **Reset layout**.
 - Toggles: **Highlight paths on hover**, **Show dependency edges**, **Dim not-generated**.
+- **Layers**: cycles the node/edge stacking order (nodes on top, edges on top, free).
 - **Toggle theme** and **Preferences**.
 
 ## Node menu

@@ -22,6 +22,7 @@ Display toggles for the whole graph:
 
 - **Dim not-generated**: fades placeholder nodes that are expected but do not exist yet, together with their edges and any highlight on them, so real content stands out while the placeholders keep their place in the layout. Also available as the **Dim ∅** toolbar toggle.
 - **Not-generated opacity**: how faded those nodes are while dimming is on (5 to 80 percent). Faded nodes stay interactive, so you can still select and edit them.
+- **Layer order**: whether nodes or edges draw on top, or **free** (each competes by its own depth). Whichever element you hover or select rises within its layer, so a crossed edge comes to the front when you point at or pick it. Also the **⿻ Layers** toolbar button and a View / right-click menu entry that cycle the three modes.
 - **Color edges by section**: edges take the color of the target node's section. Turn it off for neutral gray edges.
 - **Show dependency edges**: shows or hides the dependency edges, to declutter a dense graph.
 - **Highlight paths on hover**: lights a node's upstream and downstream paths as you hover it. Also the **✦ Paths** toolbar toggle. See [Highlighting](/working/highlighting).

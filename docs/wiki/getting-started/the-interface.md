@@ -20,9 +20,9 @@ On the right, a badge shows the active mode (**● Connected** or **○ Static**
 
 Below the menu bar, a toolbar repeats the most used actions:
 
-**＋ Node** · **⊕ New** · undo · redo · **⇩ PNG** · **⤢ Fit** · **⟳ Reset** · **✦ Paths** · **Dim ∅** · **⚙ Preferences** · **◐ theme**.
+**＋ Node** · **⊕ New** · undo · redo · **⇩ PNG** · **⤢ Fit** · **⟳ Reset** · **✦ Paths** · **Dim ∅** · **⿻ Layers** · **⚙ Preferences** · **◐ theme**.
 
-**✦ Paths** and **Dim ∅** are toggles: they stay highlighted while on.
+**✦ Paths** and **Dim ∅** are toggles: they stay highlighted while on. **⿻ Layers** cycles the stacking order (nodes on top, edges on top, free).
 
 ## Canvas
 
