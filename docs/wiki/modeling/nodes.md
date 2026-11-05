@@ -34,11 +34,11 @@ See [Importing files](/modeling/importing-files).
 
 ## The node overlay
 
-**Double-click** a node to open its overlay (or hold <kbd>Alt</kbd> and hover it for a transient one); a single click selects the node. From the overlay you can connect it, add a comment, change its section, set a due date, lock it, and (for manual nodes) delete it. See [Overlays and actions](/working/overlays-and-actions) and [Node metadata](/working/node-metadata).
+**Double-click** a node to open its overlay (or hold <kbd>Alt</kbd> and hover it for a transient one); a single click selects the node. From the overlay you can connect it, add a comment, change its section, set a due date, lock it, and delete it. See [Overlays and actions](/working/overlays-and-actions) and [Node metadata](/working/node-metadata).
 
 ## Delete a node
 
-Only **manual** nodes can be deleted, from the overlay action bar (🗑). Automatic nodes come from the model and cannot be removed by hand.
+You can delete any document or comment node, manual or automatic, from the overlay action bar (🗑) or the node context menu. When the node bridges others, Strata offers to rebuild the broken links and flags the neighbors left disconnected. See [Deleting nodes](/working/deleting-nodes).
 
 ## Next
 

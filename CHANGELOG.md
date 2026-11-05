@@ -23,6 +23,9 @@ history; the project carried no tagged releases before this file was introduced.
   not-generated" toggle became "Dim not-generated", which fades those nodes, their
   edges and any highlight on them while keeping them in the layout, so bands no
   longer collapse when placeholders are set aside. Faded nodes stay interactive.
+- Automatic (built-in) nodes can now be deleted, not only manual ones. A deleted
+  automatic node is kept out of the graph across reloads; undo restores the node,
+  its edges, any rebuilt links and the alert together.
 
 ### Added
 
@@ -33,6 +36,14 @@ history; the project carried no tagged releases before this file was introduced.
   another. The hovered or selected node or edge rises within its layer either way.
   Available in Preferences, the View menu, the background context menu and a
   "⿻ Layers" quick-bar button.
+- Relational-integrity alert when a node is deleted: a delete confirmation offers
+  to rebuild each prerequisite to dependent link that passed through the node, and
+  the neighbors left disconnected are flagged with a red pulse, a broken-link badge
+  and an orphaned or partial severity.
+- Rebuild relations panel with dotted ghost previews on the canvas: reconnect or
+  discard each broken link, reconnect them all, unlink a node from the alert, or
+  dismiss the event. Reachable from the alert banner, the status-bar badge, the
+  quick bar, the View menu and the node and canvas context menus.
 
 ## [0.8.0] - 2026-11-05
 

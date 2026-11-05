@@ -15,7 +15,7 @@ A single click **selects** a node; it does not open the overlay. Open the overla
 
 From top to bottom:
 
-- An **action bar** of icon buttons, below the title: **🔒 lock/unlock**, **🔗 connect**, **⛓ manage connections** (lists every edge on the node with a per-row remove; see [Edges](/modeling/edges)), **🏷️ comment**, and **🗑 delete** (manual nodes only). Each button has a tooltip.
+- An **action bar** of icon buttons, below the title: **🔒 lock/unlock**, **🔗 connect**, **⛓ manage connections** (lists every edge on the node with a per-row remove; see [Edges](/modeling/edges)), **🏷️ comment**, and **🗑 delete** (manual or automatic; see [Deleting nodes](/working/deleting-nodes)). When the node is under a broken-link alert, a ✔ action to unlink it from the alert also appears. Each button has a tooltip.
 - **Flags**: Automatic/Manual, Generated/Not-generated, Locked.
 - The node's **files**, with open file / open folder in Connected mode.
 - The **Section** list (filterable) to reassign the node.
