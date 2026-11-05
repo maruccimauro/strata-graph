@@ -15,7 +15,7 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
-import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs, type Startup } from "./api";
+import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs, type Startup, type Orientation } from "./api";
 import { t, setLang } from "./i18n";
 import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
 import { toSgm, fromSgm } from "../core/sgm";
@@ -218,7 +218,22 @@ export function Editor({
   );
 
   const onSetSection = useCallback(
-    (id: string, sectionId: string) => commit((s) => ({ ...s, sectionOverrides: { ...(s.sectionOverrides ?? {}), [id]: sectionId } })),
+    (id: string, sectionId: string) =>
+      commit((s) => {
+        // Moving a node to another band drops its saved position in every
+        // orientation so it re-grids into the new band, instead of keeping a
+        // band-relative offset (or a legacy absolute one) that belonged elsewhere.
+        const pos: Partial<Record<Orientation, Record<string, { x: number; y: number }>>> = { ...(s.pos ?? {}) };
+        for (const o of Object.keys(pos) as Orientation[]) {
+          const m = pos[o];
+          if (m && id in m) {
+            const next = { ...m };
+            delete next[id];
+            pos[o] = next;
+          }
+        }
+        return { ...s, sectionOverrides: { ...(s.sectionOverrides ?? {}), [id]: sectionId }, pos };
+      }),
     [commit],
   );
 
@@ -610,6 +625,7 @@ export function Editor({
     { label: t("menu.view.reset"), onClick: onResetLayout },
     { label: "", onClick: () => {}, separator: true },
     { label: t("menu.view.hoverPaths"), checked: prefs.hoverHighlight, onClick: () => setPrefs({ hoverHighlight: !prefs.hoverHighlight }) },
+    { label: t("menu.view.autoGrow"), checked: prefs.autoGrowBands, onClick: () => setPrefs({ autoGrowBands: !prefs.autoGrowBands }) },
     { label: t("menu.view.showDeps"), checked: prefs.showDeps, onClick: () => setPrefs({ showDeps: !prefs.showDeps }) },
     { label: t("menu.view.hideMissing"), checked: prefs.hideMissing, onClick: () => setPrefs({ hideMissing: !prefs.hideMissing }) },
     { label: "", onClick: () => {}, separator: true },

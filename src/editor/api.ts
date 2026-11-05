@@ -1,6 +1,12 @@
 import type { GraphModel, GraphNode, GraphEdge } from "../core/types";
+import { countBandOrigins } from "../core/layout";
 
 export type Mode = "connected" | "static";
+
+/** Position storage schema. v2 stores document/central positions relative to
+ *  their band origin (they render as React Flow children of the band); v1 stored
+ *  them in absolute canvas coordinates. Migrated once at boot. */
+export const POS_SCHEMA = 2;
 
 export interface Prefs {
   /** hide "not generated" placeholder nodes. */
@@ -14,6 +20,9 @@ export interface Prefs {
   /** on hover, transiently highlight a node's upstream/downstream paths and the
    *  hovered edge (same visual as selecting, without the click). */
   hoverHighlight: boolean;
+  /** let a band grow to hold a node dragged past its edge. When off, nodes are
+   *  confined to their band instead. */
+  autoGrowBands: boolean;
   /** UI language (i18n). English only for now; see `src/editor/i18n.ts`. */
   lang: string;
 }
@@ -24,6 +33,7 @@ export const DEFAULT_PREFS: Prefs = {
   showDeps: true,
   layout: "horizontal",
   hoverHighlight: true,
+  autoGrowBands: true,
   lang: "en",
 };
 
@@ -50,6 +60,8 @@ export interface ViewerState {
   nodeMeta?: Record<string, { createdAt?: number; dueAt?: number; locked?: boolean }>;
   /** canon doc ids ever seen generated (to detect "unavailable" later). */
   seenGenerated?: string[];
+  /** position storage schema version (see POS_SCHEMA); absent means legacy v1. */
+  posSchema?: number;
   prefs?: Prefs;
   [k: string]: unknown;
 }
@@ -103,13 +115,58 @@ export function normalizeState(state: ViewerState): ViewerState {
   return { ...state, pos: { horizontal: p as PosMap } };
 }
 
+/** Convert legacy v1 (absolute) saved positions into band-relative v2 ones, once.
+ *  Document/central positions have their band origin (under document-count sizing,
+ *  matching the old layout) subtracted; comments and sectionless docs stay
+ *  absolute. No-op for state already at v2 or without positions. */
+export function migratePositions(graph: GraphModel, state: ViewerState): ViewerState {
+  if (state.posSchema === POS_SCHEMA) return state;
+  if (!state.pos) return { ...state, posSchema: POS_SCHEMA };
+
+  const overrides = state.sectionOverrides ?? {};
+  const byId = new Map<string, GraphNode>();
+  for (const n of graph.nodes) byId.set(n.id, n);
+  for (const n of state.manualNodes ?? []) byId.set(n.id, n);
+
+  // Effective section of a stored id (central ids are "section:<sectionId>").
+  const effSection = (id: string): string | undefined => {
+    if (id.startsWith("section:")) return id.slice("section:".length);
+    const n = byId.get(id);
+    if (!n || n.kind !== "doc") return undefined;
+    return overrides[id] ?? n.sectionId ?? undefined;
+  };
+
+  // Counting model mirrors the old render model's node set and effective sections,
+  // so the band origins match what the v1 positions were laid out against.
+  const effNodes = [...graph.nodes, ...(state.manualNodes ?? [])].map((n) => ({
+    ...n,
+    sectionId: overrides[n.id] ?? n.sectionId,
+  }));
+  const countingModel: GraphModel = { ...graph, nodes: effNodes };
+
+  const pos: Partial<Record<Orientation, PosMap>> = {};
+  for (const o of Object.keys(state.pos) as Orientation[]) {
+    const map = state.pos[o];
+    if (!map) continue;
+    const origins = countBandOrigins(countingModel, o);
+    const out: PosMap = {};
+    for (const [id, p] of Object.entries(map)) {
+      const sid = effSection(id);
+      const origin = sid ? origins.get(sid) : undefined;
+      out[id] = origin ? { x: p.x - origin.x, y: p.y - origin.y } : p;
+    }
+    pos[o] = out;
+  }
+  return { ...state, pos, posSchema: POS_SCHEMA };
+}
+
 /** Try the connected server; fall back to the demo graph + localStorage state. */
 export async function boot(demo: GraphModel): Promise<Boot> {
   try {
     const r = await fetch("/api/graph");
     if (r.ok) {
       const j = (await r.json()) as { graph: GraphModel; state: ViewerState; root?: string };
-      return { mode: "connected", graph: j.graph, state: normalizeState(j.state ?? {}), root: j.root };
+      return { mode: "connected", graph: j.graph, state: migratePositions(j.graph, normalizeState(j.state ?? {})), root: j.root };
     }
   } catch {
     /* no server -> static */
@@ -120,7 +177,7 @@ export async function boot(demo: GraphModel): Promise<Boot> {
   } catch {
     /* ignore */
   }
-  return { mode: "static", graph: demo, state: normalizeState(state) };
+  return { mode: "static", graph: demo, state: migratePositions(demo, normalizeState(state)) };
 }
 
 export function persist(mode: Mode, name: string, state: ViewerState): void {

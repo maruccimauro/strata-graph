@@ -141,6 +141,7 @@ export function TopBar(p: TopBarProps) {
           <MenuItem label={`${check(p.prefs.edgeColor === "section")}  ${t("menu.view.colorBySection")}`} onClick={() => p.onPrefsChange({ edgeColor: p.prefs.edgeColor === "section" ? "neutral" : "section" })} />
           <MenuItem label={`${check(p.prefs.showDeps)}  ${t("menu.view.showDeps")}`} onClick={() => p.onPrefsChange({ showDeps: !p.prefs.showDeps })} />
           <MenuItem label={`${check(p.prefs.hoverHighlight)}  ${t("menu.view.hoverPaths")}`} onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} />
+          <MenuItem label={`${check(p.prefs.autoGrowBands)}  ${t("menu.view.autoGrow")}`} onClick={() => p.onPrefsChange({ autoGrowBands: !p.prefs.autoGrowBands })} />
           <MenuItem label={t("menu.view.theme")} onClick={() => { close(); p.onToggleTheme(); }} />
         </Menu>
 
@@ -168,6 +169,7 @@ export function TopBar(p: TopBarProps) {
         <Button onClick={p.onResetLayout} title={t("tip.reset")}>⟳ {t("quickbar.reset")}</Button>
         <span style={{ flex: 1 }} />
         <Button onClick={() => p.onPrefsChange({ hoverHighlight: !p.prefs.hoverHighlight })} active={p.prefs.hoverHighlight} title={t("tip.paths")}>✦ {t("quickbar.paths")}</Button>
+        <Button onClick={() => p.onPrefsChange({ autoGrowBands: !p.prefs.autoGrowBands })} active={p.prefs.autoGrowBands} title={t("tip.autoGrow")}>⇲ {t("quickbar.autoGrow")}</Button>
         <Button onClick={() => p.onPrefsChange({ hideMissing: !p.prefs.hideMissing })} active={p.prefs.hideMissing} title={t("tip.hideMissing")}>{t("quickbar.hideMissing")}</Button>
         <Button onClick={p.onOpenPrefs} title={t("tip.prefs")}>⚙</Button>
         <Button onClick={p.onToggleTheme} title={t("tip.theme")}>◐</Button>

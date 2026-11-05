@@ -37,6 +37,7 @@ const en: Dict = {
   "menu.view.colorBySection": "Color edges by section",
   "menu.view.showDeps": "Show dependency edges",
   "menu.view.hoverPaths": "Highlight paths on hover",
+  "menu.view.autoGrow": "Grow bands to dragged content",
   "menu.view.theme": "Toggle theme",
   // mode badge + summary
   "badge.connected": "● Connected",
@@ -47,6 +48,7 @@ const en: Dict = {
   // quick bar
   "action.node": "Node",
   "quickbar.paths": "Paths",
+  "quickbar.autoGrow": "Grow",
   "quickbar.fit": "Fit",
   "quickbar.reset": "Reset",
   "quickbar.hideMissing": "Hide ∅",
@@ -56,6 +58,7 @@ const en: Dict = {
   "tip.fit": "Fit to screen",
   "tip.reset": "Reset node positions",
   "tip.paths": "Highlight a node's upstream/downstream paths on hover",
+  "tip.autoGrow": "Let a band grow when a node is dragged past its edge",
   "tip.hideMissing": "Hide not-generated nodes",
   "tip.prefs": "Preferences",
   "tip.theme": "Toggle light/dark",
@@ -144,6 +147,7 @@ const en: Dict = {
   "prefs.nav.connect": "Drag from a node's edge to another node to connect them.",
   "prefs.nav.dismiss": "Esc or click outside to dismiss an overlay or selection.",
   "prefs.display.title": "Display",
+  "prefs.autoGrow.hint": "Off confines nodes to their band instead of growing it.",
   "prefs.lang.title": "Language",
   "prefs.sections.title": "Section colors",
   "prefs.sections.reset": "Reset",

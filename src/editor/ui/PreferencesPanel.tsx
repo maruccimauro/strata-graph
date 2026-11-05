@@ -232,6 +232,9 @@ function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partia
       <Field label={t("menu.view.hoverPaths")}>
         <input type="checkbox" checked={prefs.hoverHighlight} onChange={(e) => onChange({ hoverHighlight: e.target.checked })} />
       </Field>
+      <Field label={t("menu.view.autoGrow")} hint={t("prefs.autoGrow.hint")}>
+        <input type="checkbox" checked={prefs.autoGrowBands} onChange={(e) => onChange({ autoGrowBands: e.target.checked })} />
+      </Field>
     </Group>
   );
 }

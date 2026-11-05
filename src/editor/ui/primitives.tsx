@@ -180,10 +180,13 @@ export function Combobox({
 }
 
 /** Labeled row for config panels. */
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, margin: "7px 0", fontSize: ".82rem" }}>
-      <span style={{ color: MUTED }}>{label}</span>
+      <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <span style={{ color: MUTED }}>{label}</span>
+        {hint && <span style={{ color: MUTED, opacity: 0.7, fontSize: ".72rem" }}>{hint}</span>}
+      </span>
       {children}
     </label>
   );

@@ -6,9 +6,10 @@
  * engine: a built-in model (SDLC or any other) just produces a GraphModel to wrap.
  */
 import type { GraphModel } from "./types";
+import { countBandOrigins } from "./layout";
 
 export const SGM_FORMAT = "strata-graph-model";
-export const SGM_VERSION = 1;
+export const SGM_VERSION = 2;
 export const SGM_EXTENSION = ".sgm";
 
 export interface SgmDocument {
@@ -50,5 +51,20 @@ export function fromSgm(text: string): GraphModel {
   ) {
     throw new Error("Invalid .sgm file: malformed model (needs meta, sections, nodes, edges).");
   }
-  return m;
+  return doc.version === 1 ? migrateModelV1ToV2(m) : m;
+}
+
+/** v1 baked absolute positions; v2 stores document/central positions relative to
+ *  their band origin. Convert assuming horizontal layout (v1 did not record the
+ *  orientation); comments and sectionless docs stay absolute. Best effort for
+ *  legacy files, exact for anything exported by this build (v2). */
+function migrateModelV1ToV2(m: GraphModel): GraphModel {
+  const origins = countBandOrigins(m, "horizontal");
+  const nodes = m.nodes.map((n) => {
+    if (!n.position) return n;
+    const sid = n.kind === "section" || n.kind === "doc" ? n.sectionId : undefined;
+    const origin = sid ? origins.get(sid) : undefined;
+    return origin ? { ...n, position: { x: n.position.x - origin.x, y: n.position.y - origin.y } } : n;
+  });
+  return { ...m, nodes };
 }
