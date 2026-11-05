@@ -9,7 +9,7 @@ import type { GraphModel } from "./types";
 import { countBandOrigins } from "./layout";
 
 export const SGM_FORMAT = "strata-graph-model";
-export const SGM_VERSION = 2;
+export const SGM_VERSION = 3;
 export const SGM_EXTENSION = ".sgm";
 
 export interface SgmDocument {
@@ -51,20 +51,21 @@ export function fromSgm(text: string): GraphModel {
   ) {
     throw new Error("Invalid .sgm file: malformed model (needs meta, sections, nodes, edges).");
   }
-  return doc.version === 1 ? migrateModelV1ToV2(m) : m;
+  // v1 and v3 bake absolute positions; v2 baked band-relative ones, so add the
+  // band origin back. Comments and sectionless docs stay absolute in every version.
+  return doc.version === 2 ? migrateModelV2ToV3(m) : m;
 }
 
-/** v1 baked absolute positions; v2 stores document/central positions relative to
- *  their band origin. Convert assuming horizontal layout (v1 did not record the
- *  orientation); comments and sectionless docs stay absolute. Best effort for
- *  legacy files, exact for anything exported by this build (v2). */
-function migrateModelV1ToV2(m: GraphModel): GraphModel {
+/** Convert a v2 model (band-relative positions) to absolute coordinates, assuming
+ *  horizontal layout (v2 did not record the orientation). Best effort for the
+ *  short-lived v2 files; exact for v1/v3, which are already absolute. */
+function migrateModelV2ToV3(m: GraphModel): GraphModel {
   const origins = countBandOrigins(m, "horizontal");
   const nodes = m.nodes.map((n) => {
     if (!n.position) return n;
     const sid = n.kind === "section" || n.kind === "doc" ? n.sectionId : undefined;
     const origin = sid ? origins.get(sid) : undefined;
-    return origin ? { ...n, position: { x: n.position.x - origin.x, y: n.position.y - origin.y } } : n;
+    return origin ? { ...n, position: { x: n.position.x + origin.x, y: n.position.y + origin.y } } : n;
   });
   return { ...m, nodes };
 }

@@ -3,10 +3,10 @@ import { countBandOrigins } from "../core/layout";
 
 export type Mode = "connected" | "static";
 
-/** Position storage schema. v2 stores document/central positions relative to
- *  their band origin (they render as React Flow children of the band); v1 stored
- *  them in absolute canvas coordinates. Migrated once at boot. */
-export const POS_SCHEMA = 2;
+/** Position storage schema. v1 and v3 store absolute canvas coordinates; v2
+ *  (short-lived) stored them relative to the band origin. The packing engine
+ *  works in absolute coordinates, so v3 is absolute again. Migrated once at boot. */
+export const POS_SCHEMA = 3;
 
 export interface Prefs {
   /** hide "not generated" placeholder nodes. */
@@ -115,13 +115,14 @@ export function normalizeState(state: ViewerState): ViewerState {
   return { ...state, pos: { horizontal: p as PosMap } };
 }
 
-/** Convert legacy v1 (absolute) saved positions into band-relative v2 ones, once.
- *  Document/central positions have their band origin (under document-count sizing,
- *  matching the old layout) subtracted; comments and sectionless docs stay
- *  absolute. No-op for state already at v2 or without positions. */
+/** Bring saved positions up to the current schema (absolute coordinates), once.
+ *  v1 and absent are already absolute. v2 stored band-relative coordinates, so its
+ *  document/central positions get their band origin (under document-count sizing)
+ *  added back; comments and sectionless docs are absolute in every schema. */
 export function migratePositions(graph: GraphModel, state: ViewerState): ViewerState {
   if (state.posSchema === POS_SCHEMA) return state;
-  if (!state.pos) return { ...state, posSchema: POS_SCHEMA };
+  // Only v2 is relative; v1 and absent are already absolute.
+  if (state.posSchema !== 2 || !state.pos) return { ...state, posSchema: POS_SCHEMA };
 
   const overrides = state.sectionOverrides ?? {};
   const byId = new Map<string, GraphNode>();
@@ -137,7 +138,7 @@ export function migratePositions(graph: GraphModel, state: ViewerState): ViewerS
   };
 
   // Counting model mirrors the old render model's node set and effective sections,
-  // so the band origins match what the v1 positions were laid out against.
+  // so the band origins match what the v2 positions were laid out against.
   const effNodes = [...graph.nodes, ...(state.manualNodes ?? [])].map((n) => ({
     ...n,
     sectionId: overrides[n.id] ?? n.sectionId,
@@ -153,7 +154,7 @@ export function migratePositions(graph: GraphModel, state: ViewerState): ViewerS
     for (const [id, p] of Object.entries(map)) {
       const sid = effSection(id);
       const origin = sid ? origins.get(sid) : undefined;
-      out[id] = origin ? { x: p.x - origin.x, y: p.y - origin.y } : p;
+      out[id] = origin ? { x: p.x + origin.x, y: p.y + origin.y } : p;
     }
     pos[o] = out;
   }

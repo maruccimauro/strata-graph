@@ -16,13 +16,14 @@ import {
   type NodeTypes,
   type NodeChange,
   type NodeMouseHandler,
+  type OnNodeDrag,
   type EdgeMouseHandler,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import type { GraphModel, GraphNode } from "../core/types";
 import type { Prefs } from "./api";
-import { applyDefaultLayout, computeBands, GEO } from "../core/layout";
+import { applyDefaultLayout, packLayout, GEO } from "../core/layout";
 import { BandNode } from "./nodes/BandNode";
 import { SectionNode } from "./nodes/SectionNode";
 import { DocNode, type Highlight } from "./nodes/DocNode";
@@ -90,10 +91,10 @@ export function StrataCanvas(props: StrataCanvasProps) {
 
   const nodeIndex = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model]);
   // Layout + adjacency, independent of selection and hover.
-  const info = useMemo(() => graphInfo(model, prefs.layout ?? "horizontal"), [model, prefs.layout]);
+  const info = useMemo(() => graphInfo(model, prefs.layout ?? "horizontal", prefs.autoGrowBands), [model, prefs.layout, prefs.autoGrowBands]);
   // Nodes depend only on the real selection, never on hover, so hovering a node
   // rebuilds edges only (no node flicker) and highlights edges, not the node.
-  const rfNodes = useMemo(() => buildNodes(info, selected, prefs.autoGrowBands), [info, selected, prefs.autoGrowBands, themeKey]);
+  const rfNodes = useMemo(() => buildNodes(info, selected), [info, selected, themeKey]);
   const rfEdges = useMemo(
     () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget?.edgeId ?? null),
     [info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget, themeKey],
@@ -273,29 +274,64 @@ export function StrataCanvas(props: StrataCanvasProps) {
   };
 
   // Section central node moves only across its band (the band's short axis) and
-  // stays anchored on the long axis: horizontal layout (rows) locks X and slides
-  // up-down; vertical layout (columns) locks Y and slides left-right. The central
-  // is a child of its band, so its position is relative to the band origin and the
-  // moving coordinate is clamped to [0, band short side - central short side].
-  const vertical = prefs.layout === "vertical";
+  // stays anchored on the long axis: horizontal layout (rows) fixes X at the band
+  // margin and slides up-down; vertical layout (columns) fixes Y and slides
+  // left-right. Positions are absolute; the moving coordinate is clamped to the
+  // band box so the central never leaves its own section.
+  const orientation = prefs.layout ?? "horizontal";
+  const vertical = orientation === "vertical";
   const bandBySection = useMemo(() => new Map(info.bands.map((b) => [b.section.id, b])), [info.bands]);
   const handleNodesChange = (changes: NodeChange[]) => {
     const fixed = changes.map((ch) => {
       if (ch.type === "position" && ch.position && ch.id.startsWith("section:")) {
-        const cur = nodes.find((n) => n.id === ch.id);
-        if (cur) {
-          const band = bandBySection.get(ch.id.slice("section:".length));
+        const band = bandBySection.get(ch.id.slice("section:".length));
+        if (band) {
           if (vertical) {
-            const maxX = band ? Math.max(0, band.width - GEO.SECTION_W) : ch.position.x;
-            return { ...ch, position: { x: clamp(ch.position.x, 0, maxX), y: cur.position.y } };
+            const maxX = band.x + Math.max(0, band.width - GEO.SECTION_W);
+            return { ...ch, position: { x: clamp(ch.position.x, band.x, maxX), y: GEO.SECTION_Y } };
           }
-          const maxY = band ? Math.max(0, band.height - GEO.SECTION_H) : ch.position.y;
-          return { ...ch, position: { x: cur.position.x, y: clamp(ch.position.y, 0, maxY) } };
+          const maxY = band.y + Math.max(0, band.height - GEO.SECTION_H);
+          return { ...ch, position: { x: GEO.SECTION_X, y: clamp(ch.position.y, band.y, maxY) } };
         }
       }
       return ch;
     });
     onNodesChange(fixed);
+  };
+
+  // While a document is dragged, re-pack the bands live (on demand): the dragged
+  // node's band wraps its content where it is, the other bands pack outward from
+  // it (so only the side that grows pushes its neighbors), and the long axis is
+  // shared by all bands. With auto-grow off, the node is confined to its band
+  // instead. Central nodes and comments are handled elsewhere / float freely.
+  const onNodeDrag: OnNodeDrag = (_e, node) => {
+    if (node.type !== "doc") return;
+    const g = nodeIndex.get(node.id);
+    const sid = g?.sectionId;
+    if (!sid) return; // sectionless docs float freely
+    if (!prefs.autoGrowBands) {
+      const band = bandBySection.get(sid);
+      if (!band) return;
+      const nx = clamp(node.position.x, band.x + GEO.BAND_PAD / 2, band.x + Math.max(0, band.width - GEO.DOC_W - GEO.BAND_PAD / 2));
+      const ny = clamp(node.position.y, band.y + GEO.BAND_PAD / 2, band.y + Math.max(0, band.height - GEO.DOC_H - GEO.BAND_PAD / 2));
+      setNodes((cur) => cur.map((n) => (n.id === node.id ? { ...n, position: { x: nx, y: ny } } : n)));
+      return;
+    }
+    const live = new Map(rf.getNodes().filter((n) => n.type !== "band").map((n) => [n.id, n.position]));
+    const liveModel = { ...model, nodes: model.nodes.map((n) => ({ ...n, position: live.get(n.id) ?? n.position })) };
+    const { bands, model: packed } = packLayout(liveModel, orientation, { grow: true, anchorSection: sid });
+    const posById = new Map(packed.nodes.map((n) => [n.id, n.position!]));
+    const boxById = new Map(bands.map((b) => [`band:${b.section.id}`, b]));
+    setNodes((cur) =>
+      cur.map((n) => {
+        if (n.type === "band") {
+          const b = boxById.get(n.id);
+          return b ? { ...n, position: { x: b.x, y: b.y }, style: { ...(n.style ?? {}), width: b.width, height: b.height } } : n;
+        }
+        const p = posById.get(n.id);
+        return p ? { ...n, position: p } : n;
+      }),
+    );
   };
 
   return (
@@ -348,16 +384,13 @@ export function StrataCanvas(props: StrataCanvasProps) {
       onConnect={(c) => {
         if (c.source && c.target && c.source !== c.target) onConnectNodes(c.source, c.target);
       }}
+      onNodeDrag={onNodeDrag}
       onNodeDragStop={() => {
+        // Persist the packed absolute positions left by the live drag.
         const pos: Record<string, { x: number; y: number }> = {};
-        for (const n of nodes) {
+        for (const n of rf.getNodes()) {
           if (n.type === "band") continue;
-          // Children (nodes inside a band) store band-relative coordinates; clamp
-          // so a drag never pushes them above/left of their band origin. Top-level
-          // nodes (comments, sectionless docs) stay in absolute coordinates.
-          pos[n.id] = n.parentId
-            ? { x: Math.max(0, n.position.x), y: Math.max(0, n.position.y) }
-            : { x: n.position.x, y: n.position.y };
+          pos[n.id] = { x: n.position.x, y: n.position.y };
         }
         onPersistPositions(pos);
       }}
@@ -424,10 +457,12 @@ function reach(map: Map<string, string[]>, start: string): Set<string> {
 
 /** Layout, section hues, adjacency and section counts — everything derived from
  *  the model (and orientation) alone, independent of selection and hover. */
-function graphInfo(model: GraphModel, orientation: "horizontal" | "vertical") {
-  const laid = applyDefaultLayout(model, orientation);
+function graphInfo(model: GraphModel, orientation: "horizontal" | "vertical", grow: boolean) {
+  const seeded = applyDefaultLayout(model, orientation);
+  const packed = packLayout(seeded, orientation, { grow });
+  const laid = packed.model;
+  const bands = packed.bands;
   const sectionHue = new Map(laid.sections.map((s) => [s.id, s.hue]));
-  const bands = computeBands(laid, orientation);
   const byId = new Map(laid.nodes.map((n) => [n.id, n]));
 
   const up = new Map<string, string[]>();
@@ -484,11 +519,8 @@ function edgeDir(
 
 /** Nodes depend only on the real selection: a selected node dims the unrelated
  *  nodes and marks its own chain. Hover never affects nodes. */
-function buildNodes(info: GraphInfo, selected: string | null, autoGrow: boolean): Node[] {
+function buildNodes(info: GraphInfo, selected: string | null): Node[] {
   const { laid, sectionHue, bands, up, down, auto, manual } = info;
-  // A child node's band must exist in the array (and before it) for React Flow,
-  // so only parent a node whose section actually has a band.
-  const bandIds = new Set(bands.map((b) => b.section.id));
   const anc = selected ? reach(up, selected) : new Set<string>();
   const desc = selected ? reach(down, selected) : new Set<string>();
   const hlOf = (id: string): Highlight => {
@@ -524,9 +556,6 @@ function buildNodes(info: GraphInfo, selected: string | null, autoGrow: boolean)
         id: n.id,
         type: "section",
         position: n.position!,
-        // Child of its band (relative coordinates); the central never grows the
-        // band, so no expandParent. Its cross-axis clamp lives in handleNodesChange.
-        parentId: n.sectionId && bandIds.has(n.sectionId) ? `band:${n.sectionId}` : undefined,
         data: { label: n.label, hue, autoCount: a.gen, autoTotal: a.total, manualCount: manual.get(n.sectionId!) ?? 0, locked: n.locked },
         draggable: !n.locked,
         zIndex: 1,
@@ -543,17 +572,12 @@ function buildNodes(info: GraphInfo, selected: string | null, autoGrow: boolean)
         style: dim,
       });
     } else {
-      // A document with a section is a child of its band (relative coordinates).
-      // With auto-grow on, expandParent grows the band live as the node is dragged
-      // past the edge; with it off, extent "parent" confines the node to the band.
-      // Sectionless manual docs stay top-level in absolute coordinates.
+      // Documents are positioned in absolute coordinates; the packing engine
+      // (packLayout) keeps them inside their band and moves them with it.
       rfNodes.push({
         id: n.id,
         type: "doc",
         position: n.position!,
-        ...(n.sectionId && bandIds.has(n.sectionId)
-          ? { parentId: `band:${n.sectionId}`, ...(autoGrow ? { expandParent: true } : { extent: "parent" as const }) }
-          : {}),
         data: { label: n.label, hue, status: n.status, origin: n.origin, hl: hlOf(n.id), locked: n.locked, dueAt: n.dueAt },
         draggable: !n.locked,
         zIndex: 1,
