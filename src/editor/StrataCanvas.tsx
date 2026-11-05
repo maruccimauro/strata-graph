@@ -318,12 +318,16 @@ export function StrataCanvas(props: StrataCanvasProps) {
       return;
     }
     const live = new Map(rf.getNodes().filter((n) => n.type !== "band").map((n) => [n.id, n.position]));
+    live.set(node.id, node.position); // the event carries the authoritative drag position
     const liveModel = { ...model, nodes: model.nodes.map((n) => ({ ...n, position: live.get(n.id) ?? n.position })) };
     const { bands, model: packed } = packLayout(liveModel, orientation, { grow: true, anchorSection: sid });
     const posById = new Map(packed.nodes.map((n) => [n.id, n.position!]));
     const boxById = new Map(bands.map((b) => [`band:${b.section.id}`, b]));
     setNodes((cur) =>
       cur.map((n) => {
+        // Leave the dragged node to React Flow; overriding its position here fights
+        // the drag and pins it. Move only its neighbors and the band boxes.
+        if (n.id === node.id) return n;
         if (n.type === "band") {
           const b = boxById.get(n.id);
           return b ? { ...n, position: { x: b.x, y: b.y }, style: { ...(n.style ?? {}), width: b.width, height: b.height } } : n;
