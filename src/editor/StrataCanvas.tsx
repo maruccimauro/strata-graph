@@ -22,7 +22,7 @@ import "@xyflow/react/dist/style.css";
 
 import type { GraphModel, GraphNode } from "../core/types";
 import type { Prefs } from "./api";
-import { applyDefaultLayout, computeBands } from "../core/layout";
+import { applyDefaultLayout, computeBands, GEO } from "../core/layout";
 import { BandNode } from "./nodes/BandNode";
 import { SectionNode } from "./nodes/SectionNode";
 import { DocNode, type Highlight } from "./nodes/DocNode";
@@ -47,6 +47,8 @@ const nodeTypes: NodeTypes = {
 };
 
 const edgeTypes = { floating: FloatingEdge };
+
+const clamp = (v: number, min: number, max: number): number => Math.min(Math.max(v, min), max);
 
 export interface StrataCanvasProps {
   model: GraphModel;
@@ -270,18 +272,27 @@ export function StrataCanvas(props: StrataCanvasProps) {
     onActivateEdge(edge.id, edge.source, edge.target, e.clientX, e.clientY);
   };
 
-  // Section central node moves along one axis only: horizontal layout locks Y
-  // (slides left-right), vertical layout locks X (slides up-down).
+  // Section central node moves only across its band (the band's short axis) and
+  // stays anchored on the long axis: horizontal layout (rows) locks X and slides
+  // up-down; vertical layout (columns) locks Y and slides left-right. The moving
+  // coordinate is clamped to the band box so the central node never leaves its
+  // own band.
   const vertical = prefs.layout === "vertical";
+  const bandBySection = useMemo(() => new Map(info.bands.map((b) => [b.section.id, b])), [info.bands]);
   const handleNodesChange = (changes: NodeChange[]) => {
     const fixed = changes.map((ch) => {
       if (ch.type === "position" && ch.position && ch.id.startsWith("section:")) {
         const cur = nodes.find((n) => n.id === ch.id);
         if (cur) {
-          const locked = vertical
-            ? { x: cur.position.x, y: ch.position.y }
-            : { x: ch.position.x, y: cur.position.y };
-          return { ...ch, position: locked };
+          const band = bandBySection.get(ch.id.slice("section:".length));
+          if (vertical) {
+            const minX = band ? band.x : ch.position.x;
+            const maxX = band ? band.x + band.width - GEO.SECTION_W : ch.position.x;
+            return { ...ch, position: { x: clamp(ch.position.x, minX, maxX), y: cur.position.y } };
+          }
+          const minY = band ? band.y : ch.position.y;
+          const maxY = band ? band.y + band.height - GEO.SECTION_H : ch.position.y;
+          return { ...ch, position: { x: cur.position.x, y: clamp(ch.position.y, minY, maxY) } };
         }
       }
       return ch;

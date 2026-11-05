@@ -19,7 +19,7 @@ The central node shows two counts:
 - **AUTO generated/total**: of the nodes produced by the built-in model or scan, how many exist. Unavailable nodes are excluded from this count.
 - **MANUAL +n**: how many nodes you added yourself.
 
-The central node moves horizontally only; its vertical position is locked to its band.
+The central node moves only across its band and stays anchored on the other axis: in a horizontal layout it slides up and down, in a vertical layout it slides left and right. Its travel is clamped to the band, so it never leaves its own section.
 
 ## Assigning a node to a section
 
