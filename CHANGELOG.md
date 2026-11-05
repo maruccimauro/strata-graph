@@ -36,14 +36,21 @@ history; the project carried no tagged releases before this file was introduced.
   another. The hovered or selected node or edge rises within its layer either way.
   Available in Preferences, the View menu, the background context menu and a
   "⿻ Layers" quick-bar button.
-- Relational-integrity alert when a node is deleted: a delete confirmation offers
-  to rebuild each prerequisite to dependent link that passed through the node, and
-  the neighbors left disconnected are flagged with a red pulse, a broken-link badge
-  and an orphaned or partial severity.
-- Rebuild relations panel with dotted ghost previews on the canvas: reconnect or
-  discard each broken link, reconnect them all, unlink a node from the alert, or
-  dismiss the event. Reachable from the alert banner, the status-bar badge, the
-  quick bar, the View menu and the node and canvas context menus.
+- Relational-integrity alert when a node is deleted: a delete confirmation shows
+  the two sides that lose a link (depends on, required by) and offers to rebuild
+  each prerequisite to dependent bridge that passed through the node, grouped by
+  prerequisite with a name filter and select or deselect all. Neighbors left
+  disconnected are flagged with expanding red waves, a broken-link badge and an
+  orphaned or partial severity, and a neighbor is marked only when no chosen
+  bridge still reaches it.
+- Rebuild relations panel with dotted ghost previews on the canvas, split into
+  Orphaned and Partial sections: reconnect or discard each broken link, reconnect
+  them all, unlink a node, or dismiss the event. A node name locates it on the
+  canvas with a bounced arrow, and Alt and hover a bridge previews what it
+  replaces. Reachable from the alert banner, the status-bar badge, the quick bar,
+  the View menu and the node and canvas context menus.
+- Delete the selected node with the Delete key, in addition to the node overlay
+  and context menu.
 
 ## [0.8.0] - 2026-11-05
 
