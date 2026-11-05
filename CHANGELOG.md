@@ -17,6 +17,18 @@ history; the project carried no tagged releases before this file was introduced.
 
 ## [Unreleased]
 
+### Changed
+
+- Not-generated nodes are now dimmed instead of hidden: the former "Hide
+  not-generated" toggle became "Dim not-generated", which fades those nodes, their
+  edges and any highlight on them while keeping them in the layout, so bands no
+  longer collapse when placeholders are set aside. Faded nodes stay interactive.
+
+### Added
+
+- Preference "Not-generated opacity" (default 10 percent) to set how faded
+  not-generated nodes are while dimming is on.
+
 ## [0.8.0] - 2026-11-05
 
 ### Added

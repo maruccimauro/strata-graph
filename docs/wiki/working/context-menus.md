@@ -11,7 +11,7 @@ title: Context menus
 Right-click empty space (or a section band) for graph-wide actions:
 
 - **Add node**, **Fit to screen**, **Reset layout**.
-- Toggles: **Highlight paths on hover**, **Show dependency edges**, **Hide not-generated**.
+- Toggles: **Highlight paths on hover**, **Show dependency edges**, **Dim not-generated**.
 - **Toggle theme** and **Preferences**.
 
 ## Node menu

@@ -20,7 +20,8 @@ This category also lists how you move around the canvas: middle-click (wheel) dr
 
 Display toggles for the whole graph:
 
-- **Hide not-generated**: hides placeholder nodes that are expected but do not exist yet, so you see only real content. Also available as the **Hide ∅** toolbar toggle.
+- **Dim not-generated**: fades placeholder nodes that are expected but do not exist yet, together with their edges and any highlight on them, so real content stands out while the placeholders keep their place in the layout. Also available as the **Dim ∅** toolbar toggle.
+- **Not-generated opacity**: how faded those nodes are while dimming is on (5 to 80 percent). Faded nodes stay interactive, so you can still select and edit them.
 - **Color edges by section**: edges take the color of the target node's section. Turn it off for neutral gray edges.
 - **Show dependency edges**: shows or hides the dependency edges, to declutter a dense graph.
 - **Highlight paths on hover**: lights a node's upstream and downstream paths as you hover it. Also the **✦ Paths** toolbar toggle. See [Highlighting](/working/highlighting).
