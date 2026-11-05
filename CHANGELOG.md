@@ -17,6 +17,17 @@ history; the project carried no tagged releases before this file was introduced.
 
 ## [Unreleased]
 
+### Changed
+
+- A section central node now moves only across its band (up-down in a horizontal
+  layout, left-right in a vertical one) and stays anchored on the other axis, with
+  its travel clamped to the band so it cannot drift into a neighboring section.
+- Switching the band orientation now re-arranges every node into its section for
+  the new layout instead of leaving nodes at their previous coordinates.
+- Node positions are now stored per orientation, so horizontal and vertical each
+  keep their own arrangement and a node without a saved position in the active
+  orientation falls back to the default layout.
+
 ## [0.7.0] - 2026-11-04
 
 ### Added

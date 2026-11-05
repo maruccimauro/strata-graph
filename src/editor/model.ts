@@ -5,7 +5,8 @@ import type { ViewerState } from "./api";
  *  concrete GraphModel the canvas renders: section overrides, saved positions,
  *  manual nodes/edges, removed auto edges, and the hide-missing preference. */
 export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphModel {
-  const pos = state.pos ?? {};
+  const layout = state.prefs?.layout ?? "horizontal";
+  const pos = state.pos?.[layout] ?? {};
   const overrides = state.sectionOverrides ?? {};
   const hues = state.sectionHues ?? {};
   const meta = state.nodeMeta ?? {};

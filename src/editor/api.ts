@@ -27,8 +27,14 @@ export const DEFAULT_PREFS: Prefs = {
   lang: "en",
 };
 
+export type Orientation = Prefs["layout"];
+export type PosMap = Record<string, { x: number; y: number }>;
+
 export interface ViewerState {
-  pos?: Record<string, { x: number; y: number }>;
+  /** Saved node positions kept per band orientation, so each layout remembers its
+   *  own arrangement. A node absent from the active orientation's map falls back
+   *  to the computed default layout for that orientation. */
+  pos?: Partial<Record<Orientation, PosMap>>;
   /** user-created nodes (docs by file, or comments). */
   manualNodes?: GraphNode[];
   /** user-created dependency/comment edges. */
@@ -84,13 +90,26 @@ export function saveStartup(s: Startup): void {
   }
 }
 
+/** Migrate a legacy flat `pos` map (node id -> point) to the orientation-scoped
+ *  shape, assigning the old positions to the default orientation (horizontal).
+ *  No-op for state already in the new shape or without positions. */
+export function normalizeState(state: ViewerState): ViewerState {
+  const p = state.pos as Record<string, unknown> | undefined;
+  if (!p) return state;
+  const isPoint = (v: unknown): boolean =>
+    typeof v === "object" && v !== null && typeof (v as { x?: unknown }).x === "number" && typeof (v as { y?: unknown }).y === "number";
+  const legacy = Object.values(p).some(isPoint);
+  if (!legacy) return state;
+  return { ...state, pos: { horizontal: p as PosMap } };
+}
+
 /** Try the connected server; fall back to the demo graph + localStorage state. */
 export async function boot(demo: GraphModel): Promise<Boot> {
   try {
     const r = await fetch("/api/graph");
     if (r.ok) {
       const j = (await r.json()) as { graph: GraphModel; state: ViewerState; root?: string };
-      return { mode: "connected", graph: j.graph, state: j.state ?? {}, root: j.root };
+      return { mode: "connected", graph: j.graph, state: normalizeState(j.state ?? {}), root: j.root };
     }
   } catch {
     /* no server -> static */
@@ -101,7 +120,7 @@ export async function boot(demo: GraphModel): Promise<Boot> {
   } catch {
     /* ignore */
   }
-  return { mode: "static", graph: demo, state };
+  return { mode: "static", graph: demo, state: normalizeState(state) };
 }
 
 export function persist(mode: Mode, name: string, state: ViewerState): void {

@@ -163,7 +163,11 @@ export function Editor({
 
   // ----- actions -----
   const onPersistPositions = useCallback(
-    (pos: Record<string, { x: number; y: number }>) => patch((s) => ({ ...s, pos: { ...(s.pos ?? {}), ...pos } })),
+    (pos: Record<string, { x: number; y: number }>) =>
+      patch((s) => {
+        const layout = s.prefs?.layout ?? "horizontal";
+        return { ...s, pos: { ...(s.pos ?? {}), [layout]: { ...(s.pos?.[layout] ?? {}), ...pos } } };
+      }),
     [patch],
   );
 
@@ -171,11 +175,14 @@ export function Editor({
     (node: Omit<GraphNode, "position" | "id">, flowPos?: { x: number; y: number }) => {
       const id = `manual:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 6)}`;
       const pos = flowPos ?? rf.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
-      commit((s) => ({
-        ...s,
-        manualNodes: [...(s.manualNodes ?? []), { ...node, id, createdAt: node.createdAt ?? Date.now() }],
-        pos: { ...(s.pos ?? {}), [id]: pos },
-      }));
+      commit((s) => {
+        const layout = s.prefs?.layout ?? "horizontal";
+        return {
+          ...s,
+          manualNodes: [...(s.manualNodes ?? []), { ...node, id, createdAt: node.createdAt ?? Date.now() }],
+          pos: { ...(s.pos ?? {}), [layout]: { ...(s.pos?.[layout] ?? {}), [id]: pos } },
+        };
+      });
     },
     [commit, rf],
   );
@@ -381,18 +388,28 @@ export function Editor({
       const note = window.prompt(t("prompt.commentDesc")) ?? undefined;
       const anchor = model.nodes.find((n) => n.id === nodeId)?.position ?? { x: 0, y: 0 };
       const id = `manual:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 6)}`;
-      commit((s) => ({
-        ...s,
-        manualNodes: [...(s.manualNodes ?? []), { id, label: title, note, kind: "comment", origin: "manual", status: "generated", createdAt: Date.now() }],
-        manualEdges: [...(s.manualEdges ?? []), { id: `cmt:${id}`, source: id, target: nodeId, kind: "comment", origin: "manual" }],
-        pos: { ...(s.pos ?? {}), [id]: { x: anchor.x + 190, y: anchor.y - 50 } },
-      }));
+      commit((s) => {
+        const layout = s.prefs?.layout ?? "horizontal";
+        return {
+          ...s,
+          manualNodes: [...(s.manualNodes ?? []), { id, label: title, note, kind: "comment", origin: "manual", status: "generated", createdAt: Date.now() }],
+          manualEdges: [...(s.manualEdges ?? []), { id: `cmt:${id}`, source: id, target: nodeId, kind: "comment", origin: "manual" }],
+          pos: { ...(s.pos ?? {}), [layout]: { ...(s.pos?.[layout] ?? {}), [id]: { x: anchor.x + 190, y: anchor.y - 50 } } },
+        };
+      });
       setOverlay(null);
     },
     [commit, model],
   );
 
-  const onResetLayout = useCallback(() => commit((s) => ({ ...s, pos: {} })), [commit]);
+  const onResetLayout = useCallback(
+    () =>
+      commit((s) => {
+        const layout = s.prefs?.layout ?? "horizontal";
+        return { ...s, pos: { ...(s.pos ?? {}), [layout]: {} } };
+      }),
+    [commit],
+  );
   const setPrefs = useCallback((p: Partial<Prefs>) => patch((s) => ({ ...s, prefs: { ...(s.prefs ?? DEFAULT_PREFS), ...p } })), [patch]);
   const setSectionHue = useCallback(
     (id: string, hue: number) => patch((s) => ({ ...s, sectionHues: { ...(s.sectionHues ?? {}), [id]: hue } })),
@@ -466,7 +483,7 @@ export function Editor({
       s.manualNodes?.length ||
         s.manualEdges?.length ||
         s.removedEdges?.length ||
-        (s.pos && Object.keys(s.pos).length) ||
+        (s.pos && Object.values(s.pos).some((m) => m && Object.keys(m).length)) ||
         (s.sectionOverrides && Object.keys(s.sectionOverrides).length) ||
         (s.sectionHues && Object.keys(s.sectionHues).length) ||
         (s.nodeMeta && Object.keys(s.nodeMeta).length),

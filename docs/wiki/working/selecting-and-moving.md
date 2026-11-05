@@ -21,8 +21,8 @@ Your selection survives edits: locking, changing a date, or any action that redr
 
 ## Move
 
-- **Drag** a node to reposition it. Positions are saved automatically.
-- **Section central nodes** move horizontally only; their band locks the vertical position.
+- **Drag** a node to reposition it. Positions are saved automatically, and kept separately for each band orientation (horizontal and vertical each remember their own arrangement).
+- **Section central nodes** move only across their band (up-down in a horizontal layout, left-right in a vertical one) and are anchored on the other axis; their travel is clamped so they stay inside the band.
 - A **locked** node cannot be moved. See [Node metadata](/working/node-metadata).
 
 ## Pan and zoom

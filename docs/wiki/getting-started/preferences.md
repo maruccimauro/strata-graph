@@ -12,7 +12,7 @@ The **Preferences** panel has a category list on the left and the settings for t
 
 **Language** sets the interface language. English is the only language today; the interface is built so more can be added without reworking it.
 
-**Canvas layout** sets how sections are arranged. **Horizontal** stacks them as rows top-to-bottom; **vertical** stacks them as columns left-to-right. The same toggle is in **View ▸ Layout**. The view re-fits when you switch, and in each orientation the section central node slides only along the stacking axis (left-right when horizontal, up-down when vertical).
+**Canvas layout** sets how sections are arranged. **Horizontal** stacks them as rows top-to-bottom; **vertical** stacks them as columns left-to-right. The same toggle is in **View ▸ Layout**. The view re-fits when you switch, and every node re-arranges into its section for the new orientation. Each orientation keeps its own arrangement: positions you set in one are preserved when you return to it, while a node you never moved in that orientation falls back to the default layout. In each orientation the section central node slides only across its band (up-down when horizontal, left-right when vertical), clamped so it stays inside the band.
 
 This category also lists how you move around the canvas: middle-click (wheel) drag to pan, drag on empty space to box-select nodes, drag from a node's edge to another node to connect them, and <kbd>Esc</kbd> or a click outside to dismiss an overlay or selection.
 
