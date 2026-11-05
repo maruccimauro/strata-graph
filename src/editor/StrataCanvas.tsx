@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -73,6 +73,10 @@ export interface StrataCanvasProps {
   alerts: Map<string, AlertSeverity>;
   /** dotted ghost bridges previewed while the Rebuild relations panel is open. */
   ghostBridges: { source: string; target: string }[];
+  /** click on a node's broken-link badge: ask to unlink it from the alert. */
+  onAlertBadge: (nodeId: string) => void;
+  /** node to point at with a bounced arrow (located from the Rebuild panel). */
+  locate: string | null;
   retarget: Retarget | null;
   onRetargetPick: (nodeId: string) => void;
   onRetargetCancel: () => void;
@@ -83,7 +87,7 @@ export interface StrataCanvasProps {
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, frozenBands, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, alerts, ghostBridges, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
+  const { model, prefs, themeKey, frozenBands, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, alerts, ghostBridges, onAlertBadge, locate, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
   const rf = useReactFlow();
   // Cursor position in flow coordinates while a retarget is in progress, so the
   // rubber-band line can follow it from the fixed endpoint.
@@ -117,8 +121,8 @@ export function StrataCanvas(props: StrataCanvasProps) {
   // Nodes depend only on the real selection, never on hover, so hovering a node
   // rebuilds edges only (no node flicker) and highlights edges, not the node.
   const rfNodes = useMemo(
-    () => buildNodes(info, selected, prefs, alerts),
-    [info, selected, prefs.dimMissing, prefs.dimOpacity, prefs.layerOrder, alerts, themeKey],
+    () => buildNodes(info, selected, prefs, alerts, onAlertBadge),
+    [info, selected, prefs.dimMissing, prefs.dimOpacity, prefs.layerOrder, alerts, onAlertBadge, themeKey],
   );
   const rfEdges = useMemo(
     () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget?.edgeId ?? null, ghostBridges),
@@ -479,6 +483,13 @@ export function StrataCanvas(props: StrataCanvasProps) {
   // handled by onNodeDrag, which routes to the same logic).
   const onSelectionDrag: SelectionDragHandler = () => applyGroupDrag();
 
+  // Stable so React Flow's SelectionListener effect does not re-run (and call
+  // back into selection state) on every render, which would loop.
+  const handleSelectionChange = useCallback(
+    ({ nodes: sel }: { nodes: Node[]; edges: Edge[] }) => onSelectionChange(sel.filter((n) => n.type !== "band").map((n) => n.id)),
+    [onSelectionChange],
+  );
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -490,7 +501,7 @@ export function StrataCanvas(props: StrataCanvasProps) {
       onNodeMouseEnter={onNodeMouseEnter}
       onNodeMouseMove={openTransientNode}
       onNodeMouseLeave={onNodeMouseLeave}
-      onSelectionChange={({ nodes: sel }) => onSelectionChange(sel.filter((n) => n.type !== "band").map((n) => n.id))}
+      onSelectionChange={handleSelectionChange}
       onEdgeMouseEnter={onEdgeMouseEnter}
       onEdgeMouseMove={openTransientEdge}
       onEdgeMouseLeave={onEdgeMouseLeave}
@@ -554,6 +565,23 @@ export function StrataCanvas(props: StrataCanvasProps) {
       <Background gap={24} />
       <Controls />
       <MiniMap pannable zoomable />
+      {locate &&
+        (() => {
+          const n = rf.getNode(locate);
+          if (!n) return null;
+          const x = n.position.x + (n.measured?.width ?? 150) / 2;
+          const y = n.position.y;
+          return (
+            <ViewportPortal>
+              <div
+                className="strata-locate-arrow"
+                style={{ position: "absolute", left: x, top: y, transform: "translate(-50%, -100%)", pointerEvents: "none", color: "var(--ghost)", fontSize: 24, lineHeight: 1, filter: "drop-shadow(0 2px 2px rgba(0,0,0,.4))" }}
+              >
+                ▼
+              </div>
+            </ViewportPortal>
+          );
+        })()}
       {retarget &&
         cursor &&
         (() => {
@@ -668,7 +696,7 @@ const LAYER_ACTIVE = 20;
  *  nodes and marks its own chain. Hover never affects nodes. A relational-integrity
  *  alert (N-44) is an independent channel: it marks the node, overrides any dim so
  *  the pulse stays visible, and raises its layer. */
-function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs, alerts: Map<string, AlertSeverity>): Node[] {
+function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs, alerts: Map<string, AlertSeverity>, onAlertBadge: (nodeId: string) => void): Node[] {
   const { laid, sectionHue, bands, up, down, auto, manual } = info;
   const anc = selected ? reach(up, selected) : new Set<string>();
   const desc = selected ? reach(down, selected) : new Set<string>();
@@ -743,7 +771,7 @@ function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs, aler
         id: n.id,
         type: "doc",
         position: n.position!,
-        data: { label: n.label, hue, status: n.status, origin: n.origin, hl: hlOf(n.id), alert, locked: n.locked, dueAt: n.dueAt },
+        data: { label: n.label, hue, status: n.status, origin: n.origin, hl: hlOf(n.id), alert, onAlertBadge, locked: n.locked, dueAt: n.dueAt },
         draggable: !n.locked,
         zIndex: zBase,
         style: dim,

@@ -94,34 +94,51 @@ body {
   transition: transform 0.1s ease;
 }
 /* relational-integrity alert (N-44): a node that lost a dependency bridge when a
-   neighbor was deleted pulses a red ring. Steady and gentle so it does not tire
-   (the "moment" is carried by the status-bar badge, which flashes on arrival).
-   Orphaned nodes (no links left) pulse stronger than partially affected ones.
-   The ring is drawn with box-shadow, so it rides along with the node as it moves
-   and composes over the selection border instead of replacing it. */
-@keyframes strata-alert-partial {
-  0%,
-  100% {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ghost) 55%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 7px 3px color-mix(in srgb, var(--ghost) 55%, transparent);
-  }
-}
-@keyframes strata-alert-orphan {
-  0%,
-  100% {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ghost) 78%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 11px 5px color-mix(in srgb, var(--ghost) 78%, transparent);
-  }
-}
+   neighbor was deleted shows a red ring with expanding ripple waves radiating
+   outward, so it reads clearly without a hard strobe. A steady base ring keeps it
+   visible between waves; orphaned nodes (no links left) ring stronger and faster
+   than partially affected ones. Rings ride with the node and compose over the
+   selection border instead of replacing it. */
 .strata-alert-partial {
-  animation: strata-alert-partial 1.8s ease-in-out infinite;
+  animation: strata-wave-partial 1.8s ease-out infinite;
 }
 .strata-alert-orphan {
-  animation: strata-alert-orphan 1.5s ease-in-out infinite;
+  animation: strata-wave-orphan 1.4s ease-out infinite;
+}
+/* An expanding ring that grows and fades outward, reading as a wave. Drawn with
+   box-shadow so it needs no extra elements (pseudo-elements animated inside a
+   measured React Flow node can trigger a measurement loop) and rides with the
+   node. A steady inner ring keeps it visible between waves. */
+@keyframes strata-wave-partial {
+  0% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ghost) 60%, transparent), 0 0 0 1px color-mix(in srgb, var(--ghost) 55%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ghost) 60%, transparent), 0 0 3px 9px transparent;
+  }
+}
+@keyframes strata-wave-orphan {
+  0% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ghost) 85%, transparent), 0 0 0 2px color-mix(in srgb, var(--ghost) 75%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ghost) 85%, transparent), 0 0 4px 13px transparent;
+  }
+}
+/* the Rebuild panel's "locate" arrow bounces above the node it points at */
+.strata-locate-arrow {
+  animation: strata-bounce 0.9s ease-in-out infinite;
+}
+@keyframes strata-bounce {
+  0%,
+  100% {
+    transform: translate(-50%, -100%);
+  }
+  50% {
+    transform: translate(-50%, -135%);
+  }
 }
 /* the status-bar broken-link badge flashes briefly when alerts arrive, then
    settles to a stable marker (so repeated deletions do not keep it screaming). */

@@ -8,10 +8,9 @@ export interface RelationAlertBannerProps {
   onHide: (eventId: string) => void;
 }
 
-/** Count of neighbors still affected by one event (pending pairs + lone nodes). */
+/** Count of neighbors still affected by one event (its marked nodes). */
 function affectedCount(ev: BreakEvent): number {
-  const ids = new Set<string>([...ev.lonely, ...ev.pairs.flatMap((p) => [p.source, p.target])]);
-  return ids.size;
+  return Object.keys(ev.info).length;
 }
 
 /** Always-on alert banner over the viewer (N-44): one strip per deletion event

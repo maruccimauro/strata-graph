@@ -18,7 +18,7 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
-import { analyzeBreak, buildBreakEvent, alertedNodes, normalizeEvent, type BreakAnalysis } from "./integrity";
+import { analyzeBreak, buildBreakEvent, alertedNodes, normalizeEvent, resolveNodeInEvent, type BreakAnalysis } from "./integrity";
 import { persist, pickFile, openPath, DEFAULT_PREFS, nextLayerOrder, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap, type BreakEvent } from "./api";
 import { t, setLang } from "./i18n";
 import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
@@ -67,6 +67,13 @@ export function Editor({
   const [pending, setPending] = useState<{ a: string; b: string } | null>(null);
   const [connectFrom, setConnectFrom] = useState<GraphNode | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Idempotent selection setter: React Flow's SelectionListener fires on every
+  // render when its onSelectionChange prop is a fresh function, so always
+  // replacing this array would loop. Keep the same reference when the ids match.
+  const onSelectionIds = useCallback(
+    (ids: string[]) => setSelectedIds((prev) => (prev.length === ids.length && prev.every((v, i) => v === ids[i]) ? prev : ids)),
+    [],
+  );
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
@@ -78,6 +85,12 @@ export function Editor({
   // and the focused Rebuild relations panel.
   const [deleteDialog, setDeleteDialog] = useState<{ node: GraphNode; analysis: BreakAnalysis } | null>(null);
   const [rebuildOpen, setRebuildOpen] = useState(false);
+  // Generic confirmation for alert actions (unlink from the node badge, dismiss
+  // an event, reconnect all): a small dialog instead of the native confirm.
+  const [confirm, setConfirm] = useState<{ title: string; message: string; confirmLabel?: string; danger?: boolean; onConfirm: () => void } | null>(null);
+  // Node to locate (centered + bounced arrow) from the Rebuild panel; cleared when
+  // the panel closes or the node leaves the alert.
+  const [locateNode, setLocateNode] = useState<string | null>(null);
   // Edge retarget in progress (N-25): one endpoint follows the cursor while the
   // other stays fixed. Keeps the original overlay anchor so Esc can reopen it.
   const [retarget, setRetarget] = useState<
@@ -96,6 +109,10 @@ export function Editor({
   const alerts = useMemo(() => state.alerts ?? [], [state.alerts]);
   const alertMap = useMemo(() => alertedNodes(alerts), [alerts]);
   const ghostBridges = useMemo(() => (rebuildOpen ? alerts.flatMap((ev) => ev.pairs) : []), [rebuildOpen, alerts]);
+  // Clear the located node's arrow once the panel closes or the node is resolved.
+  useEffect(() => {
+    if (locateNode && (!rebuildOpen || !alertMap.has(locateNode))) setLocateNode(null);
+  }, [locateNode, rebuildOpen, alertMap]);
   const labelOf = useCallback((id: string) => model.nodes.find((n) => n.id === id)?.label ?? id, [model]);
   const infoOf = useCallback(
     (id: string) => {
@@ -256,7 +273,10 @@ export function Editor({
         // still prune its manual edges from state so none dangle in storage.
         let manualEdges = (s.manualEdges ?? []).filter((e) => e.source !== node.id && e.target !== node.id);
         for (const b of bridges) manualEdges = addBridge(manualEdges, b.source, b.target);
-        const nextAlerts = event ? [...(s.alerts ?? []), event] : s.alerts ?? [];
+        // Purge the removed node from any prior alert that referenced it (it no
+        // longer exists, so it must not keep being marked), then add the new event.
+        const purged = (s.alerts ?? []).flatMap((ev) => { const r = resolveNodeInEvent(ev, node.id); return r ? [r] : []; });
+        const nextAlerts = event ? [...purged, event] : purged;
         return { ...s, manualNodes, removedNodes, manualEdges, alerts: nextAlerts };
       });
       setSelectedNode((cur) => (cur === node.id ? null : cur));
@@ -294,6 +314,8 @@ export function Editor({
     [commit],
   );
 
+  /** Reconnect a bridge: create the prerequisite -> dependent edge, then resolve
+   *  both of its endpoints in the event (both are rebridged and no longer broken). */
   const reconnectPair = useCallback(
     (eventId: string, pair: { source: string; target: string }) => {
       commit((s) => ({
@@ -301,18 +323,22 @@ export function Editor({
         manualEdges: addBridge(s.manualEdges ?? [], pair.source, pair.target),
         alerts: (s.alerts ?? []).flatMap((ev) => {
           if (ev.id !== eventId) return [ev];
-          const next = { ...ev, pairs: ev.pairs.filter((p) => !(p.source === pair.source && p.target === pair.target)) };
-          return [normalizeEvent(next)].filter((x): x is BreakEvent => x !== null);
+          const r1 = resolveNodeInEvent(ev, pair.source);
+          const r2 = r1 ? resolveNodeInEvent(r1, pair.target) : null;
+          return r2 ? [r2] : [];
         }),
       }));
     },
     [commit, addBridge],
   );
+  /** Discard a bridge: drop it without creating an edge. A neighbor whose last
+   *  bridge was discarded becomes a lone one (resolved only by unlinking). */
   const discardPair = useCallback(
     (eventId: string, pair: { source: string; target: string }) =>
       updateEvent(eventId, (ev) => ({ ...ev, pairs: ev.pairs.filter((p) => !(p.source === pair.source && p.target === pair.target)) })),
     [updateEvent],
   );
+  /** Create every remaining bridge of an event and resolve all their endpoints. */
   const reconnectAllEvent = useCallback(
     (eventId: string) => {
       commit((s) => {
@@ -320,24 +346,24 @@ export function Editor({
         if (!ev) return s;
         let manualEdges = s.manualEdges ?? [];
         for (const p of ev.pairs) manualEdges = addBridge(manualEdges, p.source, p.target);
+        const endpoints = new Set(ev.pairs.flatMap((p) => [p.source, p.target]));
         return {
           ...s,
           manualEdges,
-          alerts: (s.alerts ?? []).flatMap((e) => (e.id === eventId ? [normalizeEvent({ ...e, pairs: [] })].filter((x): x is BreakEvent => x !== null) : [e])),
+          alerts: (s.alerts ?? []).flatMap((e) => {
+            if (e.id !== eventId) return [e];
+            let r: BreakEvent | null = e;
+            for (const id of endpoints) { if (!r) break; r = resolveNodeInEvent(r, id); }
+            return r ? [r] : [];
+          }),
         };
       });
     },
     [commit, addBridge],
   );
-  /** Unlink a neighbor from one event: drop it from lonely and discard the pairs
-   *  touching it (mark it resolved on purpose). */
+  /** Unlink a neighbor from one event (mark it resolved on purpose). */
   const unlinkNeighbor = useCallback(
-    (eventId: string, nodeId: string) =>
-      updateEvent(eventId, (ev) => ({
-        ...ev,
-        lonely: ev.lonely.filter((x) => x !== nodeId),
-        pairs: ev.pairs.filter((p) => p.source !== nodeId && p.target !== nodeId),
-      })),
+    (eventId: string, nodeId: string) => updateEvent(eventId, (ev) => resolveNodeInEvent(ev, nodeId) ?? { ...ev, info: {} }),
     [updateEvent],
   );
   /** Unlink a node from every event it appears in (used from its overlay/menu). */
@@ -346,9 +372,9 @@ export function Editor({
       commit((s) => ({
         ...s,
         alerts: (s.alerts ?? []).flatMap((ev) => {
-          if (!ev.lonely.includes(nodeId) && !ev.pairs.some((p) => p.source === nodeId || p.target === nodeId)) return [ev];
-          const next = { ...ev, lonely: ev.lonely.filter((x) => x !== nodeId), pairs: ev.pairs.filter((p) => p.source !== nodeId && p.target !== nodeId) };
-          return [normalizeEvent(next)].filter((x): x is BreakEvent => x !== null);
+          if (!ev.info[nodeId]) return [ev];
+          const r = resolveNodeInEvent(ev, nodeId);
+          return r ? [r] : [];
         }),
       })),
     [commit],
@@ -361,6 +387,57 @@ export function Editor({
   const hideEvent = useCallback(
     (eventId: string) => patch((s) => ({ ...s, alerts: (s.alerts ?? []).map((e) => (e.id === eventId ? { ...e, hidden: true } : e)) })),
     [patch],
+  );
+
+  // Confirmation wrappers for the destructive/bulk alert actions.
+  const requestUnlinkNode = useCallback(
+    (nodeId: string) =>
+      setConfirm({
+        title: t("confirm.unlink.title"),
+        message: t("confirm.unlink.body", { name: labelOf(nodeId) }),
+        confirmLabel: t("rebuild.unlink"),
+        onConfirm: () => { unlinkNodeEverywhere(nodeId); setConfirm(null); },
+      }),
+    [labelOf, unlinkNodeEverywhere],
+  );
+  const requestDismissEvent = useCallback(
+    (eventId: string) => {
+      const ev = (state.alerts ?? []).find((e) => e.id === eventId);
+      setConfirm({
+        title: t("confirm.dismiss.title"),
+        message: t("confirm.dismiss.body", { name: ev?.removedLabel ?? "" }),
+        confirmLabel: t("rebuild.dismiss"),
+        danger: true,
+        onConfirm: () => { resolveEvent(eventId); setConfirm(null); },
+      });
+    },
+    [state.alerts, resolveEvent],
+  );
+  const requestReconnectAll = useCallback(
+    (eventId: string) => {
+      const ev = (state.alerts ?? []).find((e) => e.id === eventId);
+      setConfirm({
+        title: t("confirm.reconnectAll.title"),
+        message: t("confirm.reconnectAll.body", { count: ev?.pairs.length ?? 0 }),
+        confirmLabel: t("rebuild.reconnectAll"),
+        onConfirm: () => { reconnectAllEvent(eventId); setConfirm(null); },
+      });
+    },
+    [state.alerts, reconnectAllEvent],
+  );
+  /** Center the canvas on a node and point a bounced arrow at it (from the Rebuild
+   *  panel). The arrow clears when the panel closes or the node leaves the alert. */
+  const onLocateNode = useCallback(
+    (nodeId: string) => {
+      const n = rf.getNode(nodeId);
+      if (n) {
+        const w = n.measured?.width ?? 150;
+        const h = n.measured?.height ?? 48;
+        rf.setCenter(n.position.x + w / 2, n.position.y + h / 2, { zoom: rf.getZoom(), duration: 400 });
+      }
+      setLocateNode(nodeId);
+    },
+    [rf],
   );
 
   const onSetSection = useCallback(
@@ -731,9 +808,11 @@ export function Editor({
         e.preventDefault();
         redo();
       } else if (e.key === "Escape") {
-        // Staged Escape: a retarget in progress is cancelled first (reopening its
-        // overlay); then any open overlay or panel closes; then the selection clears.
-        if (retarget) {
+        // Staged Escape: a confirmation closes first, then a retarget cancels, then
+        // any open overlay or panel closes, then the selection clears.
+        if (confirm) {
+          setConfirm(null);
+        } else if (retarget) {
           cancelRetarget();
         } else if (overlay || edgeOverlay || prefsOpen || pending || connectFrom || retargetList || edgesPanel || deleteDialog || rebuildOpen) {
           setOverlay(null);
@@ -749,23 +828,25 @@ export function Editor({
           setSelectedNode(null);
           setSelectedEdge(null);
         }
-      } else if ((e.key === "Delete" || e.key === "Backspace") && isEditableTarget(e.target) === false) {
-        // Delete the selected dependency/comment edge (auto branch edges are
-        // never selectable, so this cannot remove a section branch).
-        setSelectedEdge((cur) => {
-          if (cur) {
-            e.preventDefault();
-            onDeleteEdge(cur);
-          }
-          return null;
-        });
+      } else if ((e.key === "Delete" || e.key === "Backspace") && isEditableTarget(e.target) === false && !deleteDialog && !confirm) {
+        // Delete the selected edge; otherwise the selected node (which opens the
+        // delete confirmation when it breaks links). Auto branch edges are never
+        // selectable, so this cannot remove a section branch.
+        if (selectedEdge) {
+          e.preventDefault();
+          onDeleteEdge(selectedEdge);
+          setSelectedEdge(null);
+        } else if (selectedNode) {
+          e.preventDefault();
+          onRequestDeleteNode(selectedNode);
+        }
       } else if (e.key.toLowerCase() === "n" && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== "INPUT") {
         void onAddNode();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, onAddNode, onDeleteEdge, overlay, edgeOverlay, prefsOpen, pending, connectFrom, retargetList, edgesPanel, retarget, cancelRetarget, deleteDialog, rebuildOpen]);
+  }, [undo, redo, onAddNode, onDeleteEdge, onRequestDeleteNode, overlay, edgeOverlay, prefsOpen, pending, connectFrom, retargetList, edgesPanel, retarget, cancelRetarget, deleteDialog, rebuildOpen, confirm, selectedEdge, selectedNode]);
 
   // ----- context menus (right-click), per the configurability policy -----
   const paneMenu = (): ContextMenuItem[] => [
@@ -897,13 +978,15 @@ export function Editor({
             setOverlay(null);
             setEdgeOverlay(null);
           }}
-          onSelectionChange={setSelectedIds}
+          onSelectionChange={onSelectionIds}
           selected={selectedNode}
           onSelectNode={setSelectedNode}
           selectedEdge={selectedEdge}
           onSelectEdge={setSelectedEdge}
           alerts={alertMap}
           ghostBridges={ghostBridges}
+          onAlertBadge={requestUnlinkNode}
+          locate={locateNode}
           retarget={retarget ? ({ edgeId: retarget.edgeId, movingEnd: retarget.movingEnd, fixedNodeId: retarget.fixedNodeId } as Retarget) : null}
           onRetargetPick={onRetargetPick}
           onRetargetCancel={cancelRetarget}
@@ -1146,9 +1229,21 @@ export function Editor({
           onReconnectPair={reconnectPair}
           onDiscardPair={discardPair}
           onUnlink={unlinkNeighbor}
-          onReconnectAll={reconnectAllEvent}
-          onResolveEvent={resolveEvent}
+          onReconnectAll={requestReconnectAll}
+          onResolveEvent={requestDismissEvent}
+          onLocate={onLocateNode}
           onClose={() => setRebuildOpen(false)}
+        />
+      )}
+
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          danger={confirm.danger}
+          onConfirm={confirm.onConfirm}
+          onCancel={() => setConfirm(null)}
         />
       )}
 

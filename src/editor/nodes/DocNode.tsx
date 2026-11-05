@@ -20,6 +20,8 @@ export interface DocData {
   origin: Origin;
   hl?: Highlight;
   alert?: AlertMark;
+  /** click on the broken-link badge: ask to unlink this node from the alert. */
+  onAlertBadge?: (nodeId: string) => void;
   locked?: boolean;
   dueAt?: number;
   [key: string]: unknown;
@@ -40,7 +42,7 @@ export function dueColor(dueAt: number): string {
 }
 
 /** A document node: generated / not-generated (red dashed) / unavailable (crossed). */
-function DocNodeImpl({ data, selected }: NodeProps) {
+function DocNodeImpl({ id, data, selected }: NodeProps) {
   const d = data as DocData;
   const missing = d.status === "missing";
   const unavailable = d.status === "unavailable";
@@ -65,8 +67,11 @@ function DocNodeImpl({ data, selected }: NodeProps) {
     >
       {alerted && (
         <span
-          title={d.alert === "orphan" ? t("alert.node.orphan") : t("alert.node.partial")}
-          style={{ position: "absolute", top: -9, left: -9, fontSize: 12, lineHeight: 1, filter: "drop-shadow(0 1px 1px rgba(0,0,0,.4))" }}
+          role="button"
+          title={`${d.alert === "orphan" ? t("alert.node.orphan") : t("alert.node.partial")} — ${t("alert.badge.clickUnlink")}`}
+          onClick={(e) => { e.stopPropagation(); d.onAlertBadge?.(id); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{ position: "absolute", top: -10, left: -10, fontSize: 13, lineHeight: 1, cursor: "pointer", filter: "drop-shadow(0 1px 1px rgba(0,0,0,.4))" }}
         >
           ⛓️‍💥
         </span>
