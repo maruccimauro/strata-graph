@@ -39,12 +39,17 @@ export const DEFAULT_PREFS: Prefs = {
 
 export type Orientation = Prefs["layout"];
 export type PosMap = Record<string, { x: number; y: number }>;
+/** Frozen band boxes per section, captured while auto-grow is on and reused to
+ *  freeze the layout when it is off (so turning it off locks the bands in place). */
+export type BandBoxMap = Record<string, { x: number; y: number; width: number; height: number }>;
 
 export interface ViewerState {
   /** Saved node positions kept per band orientation, so each layout remembers its
    *  own arrangement. A node absent from the active orientation's map falls back
    *  to the computed default layout for that orientation. */
   pos?: Partial<Record<Orientation, PosMap>>;
+  /** frozen band boxes per orientation (see BandBoxMap); used when auto-grow is off. */
+  bandBoxes?: Partial<Record<Orientation, BandBoxMap>>;
   /** user-created nodes (docs by file, or comments). */
   manualNodes?: GraphNode[];
   /** user-created dependency/comment edges. */

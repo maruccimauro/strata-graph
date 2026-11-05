@@ -22,7 +22,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import type { GraphModel, GraphNode } from "../core/types";
-import type { Prefs } from "./api";
+import type { Prefs, BandBoxMap } from "./api";
 import { applyDefaultLayout, packLayout, GEO } from "../core/layout";
 import { BandNode } from "./nodes/BandNode";
 import { SectionNode } from "./nodes/SectionNode";
@@ -55,6 +55,8 @@ export interface StrataCanvasProps {
   model: GraphModel;
   prefs: Prefs;
   themeKey: number;
+  frozenBands?: BandBoxMap;
+  onPersistBands: (boxes: BandBoxMap) => void;
   onPersistPositions: (pos: Record<string, { x: number; y: number }>) => void;
   onConnectNodes: (source: string, target: string) => void;
   onActivateNode: (node: GraphNode, x: number, y: number) => void;
@@ -76,7 +78,7 @@ export interface StrataCanvasProps {
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
+  const { model, prefs, themeKey, frozenBands, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
   const rf = useReactFlow();
   // Cursor position in flow coordinates while a retarget is in progress, so the
   // rubber-band line can follow it from the fixed endpoint.
@@ -91,7 +93,22 @@ export function StrataCanvas(props: StrataCanvasProps) {
 
   const nodeIndex = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model]);
   // Layout + adjacency, independent of selection and hover.
-  const info = useMemo(() => graphInfo(model, prefs.layout ?? "horizontal", prefs.autoGrowBands), [model, prefs.layout, prefs.autoGrowBands]);
+  // With auto-grow off, freeze the layout to the band boxes captured while it was
+  // on (nodes are only confined); with it on, size the bands to their content.
+  const frozen = !prefs.autoGrowBands ? frozenBands : undefined;
+  const info = useMemo(() => graphInfo(model, prefs.layout ?? "horizontal", frozen), [model, prefs.layout, frozen]);
+  // Capture the current band boxes while auto-grow is on, so turning it off later
+  // can lock the layout exactly where it is.
+  const lastBoxes = useRef<string>("");
+  useEffect(() => {
+    if (!prefs.autoGrowBands) return;
+    const boxes: BandBoxMap = {};
+    for (const b of info.bands) boxes[b.section.id] = { x: b.x, y: b.y, width: b.width, height: b.height };
+    const key = JSON.stringify(boxes);
+    if (key === lastBoxes.current) return;
+    lastBoxes.current = key;
+    onPersistBands(boxes);
+  }, [info, prefs.autoGrowBands, onPersistBands]);
   // Nodes depend only on the real selection, never on hover, so hovering a node
   // rebuilds edges only (no node flicker) and highlights edges, not the node.
   const rfNodes = useMemo(() => buildNodes(info, selected), [info, selected, themeKey]);
@@ -286,12 +303,14 @@ export function StrataCanvas(props: StrataCanvasProps) {
       if (ch.type === "position" && ch.position && ch.id.startsWith("section:")) {
         const band = bandBySection.get(ch.id.slice("section:".length));
         if (band) {
+          // The long-axis coordinate tracks the band's start (so the central
+          // follows when the shared long axis extends); only the cross axis moves.
           if (vertical) {
             const maxX = band.x + Math.max(0, band.width - GEO.SECTION_W);
-            return { ...ch, position: { x: clamp(ch.position.x, band.x, maxX), y: GEO.SECTION_Y } };
+            return { ...ch, position: { x: clamp(ch.position.x, band.x, maxX), y: band.y + GEO.SECTION_Y } };
           }
           const maxY = band.y + Math.max(0, band.height - GEO.SECTION_H);
-          return { ...ch, position: { x: GEO.SECTION_X, y: clamp(ch.position.y, band.y, maxY) } };
+          return { ...ch, position: { x: band.x + GEO.SECTION_X, y: clamp(ch.position.y, band.y, maxY) } };
         }
       }
       return ch;
@@ -320,7 +339,7 @@ export function StrataCanvas(props: StrataCanvasProps) {
     const live = new Map(rf.getNodes().filter((n) => n.type !== "band").map((n) => [n.id, n.position]));
     live.set(node.id, node.position); // the event carries the authoritative drag position
     const liveModel = { ...model, nodes: model.nodes.map((n) => ({ ...n, position: live.get(n.id) ?? n.position })) };
-    const { bands, model: packed } = packLayout(liveModel, orientation, { grow: true, anchorSection: sid });
+    const { bands, model: packed } = packLayout(liveModel, orientation, { anchorSection: sid });
     const posById = new Map(packed.nodes.map((n) => [n.id, n.position!]));
     const boxById = new Map(bands.map((b) => [`band:${b.section.id}`, b]));
     setNodes((cur) =>
@@ -461,9 +480,9 @@ function reach(map: Map<string, string[]>, start: string): Set<string> {
 
 /** Layout, section hues, adjacency and section counts — everything derived from
  *  the model (and orientation) alone, independent of selection and hover. */
-function graphInfo(model: GraphModel, orientation: "horizontal" | "vertical", grow: boolean) {
+function graphInfo(model: GraphModel, orientation: "horizontal" | "vertical", fixedBands?: BandBoxMap) {
   const seeded = applyDefaultLayout(model, orientation);
-  const packed = packLayout(seeded, orientation, { grow });
+  const packed = packLayout(seeded, orientation, { fixedBands });
   const laid = packed.model;
   const bands = packed.bands;
   const sectionHue = new Map(laid.sections.map((s) => [s.id, s.hue]));

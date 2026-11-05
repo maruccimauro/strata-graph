@@ -15,7 +15,7 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
-import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs, type Startup, type Orientation } from "./api";
+import { persist, pickFile, openPath, DEFAULT_PREFS, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap } from "./api";
 import { t, setLang } from "./i18n";
 import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
 import { toSgm, fromSgm } from "../core/sgm";
@@ -167,6 +167,15 @@ export function Editor({
       patch((s) => {
         const layout = s.prefs?.layout ?? "horizontal";
         return { ...s, pos: { ...(s.pos ?? {}), [layout]: { ...(s.pos?.[layout] ?? {}), ...pos } } };
+      }),
+    [patch],
+  );
+
+  const onPersistBands = useCallback(
+    (boxes: BandBoxMap) =>
+      patch((s) => {
+        const layout = s.prefs?.layout ?? "horizontal";
+        return { ...s, bandBoxes: { ...(s.bandBoxes ?? {}), [layout]: boxes } };
       }),
     [patch],
   );
@@ -710,6 +719,8 @@ export function Editor({
           model={model}
           prefs={prefs}
           themeKey={themeKey}
+          frozenBands={state.bandBoxes?.[prefs.layout ?? "horizontal"]}
+          onPersistBands={onPersistBands}
           onPersistPositions={onPersistPositions}
           onConnectNodes={(source, target) => setPending({ a: source, b: target })}
           onActivateNode={(node, x, y) => {

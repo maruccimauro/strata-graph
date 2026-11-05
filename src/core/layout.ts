@@ -120,13 +120,14 @@ export interface PackResult {
 }
 
 export interface PackOptions {
-  /** when false, bands keep their document-count grid size and the long axis is
-   *  fixed to the canvas (nodes are meant to be confined, not to grow a band). */
-  grow?: boolean;
   /** the section being actively dragged: its band wraps its content where it is,
    *  and the other bands pack outward from it, so the dragged node stays put and
    *  only the side that grows pushes its neighbors. */
   anchorSection?: string;
+  /** frozen band boxes (one per section). When given and covering every section,
+   *  the bands are kept exactly as provided and nodes are only confined inside
+   *  them, so auto-grow off locks the layout instead of resizing it. */
+  fixedBands?: Record<string, { x: number; y: number; width: number; height: number }>;
 }
 
 /**
@@ -135,22 +136,26 @@ export interface PackOptions {
  * Each band is sized on the stacking axis (S: vertical->x, horizontal->y) to the
  * bounding box of its documents, so empty space is reclaimed on both sides. Bands
  * are laid contiguously in order; growth on one side pushes the neighbors on that
- * side only. The long axis (L) is a single range shared by every band, taken from
- * all content (documents plus the central's fixed margin), so a node dragged far
- * along L grows every band together and can extend in either direction.
+ * side only. The long axis (L) is a single range shared by every band, anchored on
+ * the documents with room reserved for the central, so a node dragged far along L
+ * grows every band together and can extend in either direction, and the central
+ * tracks the band's long-axis start.
  *
- * Returns the band boxes and the model with its document/central positions snapped
- * into the packed layout (comments and sectionless nodes are left untouched).
+ * Sizing is always content-aware (with a grid floor), so turning auto-grow off and
+ * confining nodes in the editor freezes the current layout rather than snapping it
+ * back to a grid. Returns the band boxes and the model with its document/central
+ * positions snapped into the packed layout (comments and sectionless nodes are
+ * left untouched).
  */
 export function packLayout(model: GraphModel, orientation: Orientation = "horizontal", opts: PackOptions = {}): PackResult {
-  const grow = opts.grow !== false;
   const isH = orientation === "horizontal";
   const DS = isH ? GEO.DOC_H : GEO.DOC_W; // document extent on the stacking axis
   const DL = isH ? GEO.DOC_W : GEO.DOC_H; // document extent on the long axis
   const CS = isH ? GEO.SECTION_H : GEO.SECTION_W; // central extent on the stacking axis
   const CL = isH ? GEO.SECTION_W : GEO.SECTION_H; // central extent on the long axis
   const CANVAS_L = isH ? GEO.CANVAS_W : GEO.CANVAS_H;
-  const M = GEO.SECTION_X; // central long-axis margin (SECTION_X === SECTION_Y === 24)
+  const M = isH ? GEO.SECTION_X : GEO.SECTION_Y; // central margin from the band's long-axis start
+  const RESERVE_L = isH ? GEO.COL0 : GEO.ROW0; // long-axis room reserved before the documents (central)
   const getS = (p: { x: number; y: number }) => (isH ? p.y : p.x);
   const getL = (p: { x: number; y: number }) => (isH ? p.x : p.y);
   const mk = (s: number, l: number) => (isH ? { x: l, y: s } : { x: s, y: l });
@@ -169,13 +174,44 @@ export function packLayout(model: GraphModel, orientation: Orientation = "horizo
     }
   }
 
-  // Stacking-axis size and content minimum per band (documents only drive growth).
+  // Frozen layout: keep the given band boxes verbatim and only confine nodes inside
+  // them (auto-grow off). Falls through to live packing if a section has no box.
+  const fixed = opts.fixedBands;
+  if (fixed && order.every((s) => fixed[s.id])) {
+    const bands: BandBox[] = [];
+    const posById = new Map<string, { x: number; y: number }>();
+    for (const sec of order) {
+      const b = fixed[sec.id];
+      bands.push({ section: sec, x: b.x, y: b.y, width: b.width, height: b.height });
+      for (const d of docsBy.get(sec.id) ?? []) {
+        const p = d.position!;
+        const nx = clamp(p.x, b.x + GEO.BAND_PAD / 2, b.x + Math.max(0, b.width - GEO.DOC_W - GEO.BAND_PAD / 2));
+        const ny = clamp(p.y, b.y + GEO.BAND_PAD / 2, b.y + Math.max(0, b.height - GEO.DOC_H - GEO.BAND_PAD / 2));
+        posById.set(d.id, { x: nx, y: ny });
+      }
+      const c = centralBy.get(sec.id);
+      if (c) {
+        if (isH) {
+          const y = c.position ? clamp(c.position.y, b.y, b.y + Math.max(0, b.height - GEO.SECTION_H)) : b.y + (b.height - GEO.SECTION_H) / 2;
+          posById.set(c.id, { x: b.x + GEO.SECTION_X, y });
+        } else {
+          const x = c.position ? clamp(c.position.x, b.x, b.x + Math.max(0, b.width - GEO.SECTION_W)) : b.x + (b.width - GEO.SECTION_W) / 2;
+          posById.set(c.id, { x, y: b.y + GEO.SECTION_Y });
+        }
+      }
+    }
+    const nodes = model.nodes.map((n) => (posById.has(n.id) ? { ...n, position: posById.get(n.id)! } : n));
+    return { bands, model: { ...model, nodes } };
+  }
+
+  // Stacking-axis size and content minimum per band (documents only drive growth),
+  // always to the content bounding box with the document-count grid as a floor.
   const sizeS = new Map<string, number>();
   const sMinBy = new Map<string, number | null>();
   for (const sec of order) {
     const list = docsBy.get(sec.id) ?? [];
     const gS = gridBandS(list.length, orientation);
-    if (grow && list.length) {
+    if (list.length) {
       let mn = Infinity;
       let mx = -Infinity;
       for (const d of list) {
@@ -187,7 +223,7 @@ export function packLayout(model: GraphModel, orientation: Orientation = "horizo
       sizeS.set(sec.id, Math.max(gS, mx - mn + GEO.BAND_PAD * 2));
     } else {
       sizeS.set(sec.id, gS);
-      sMinBy.set(sec.id, list.length ? Math.min(...list.map((d) => getS(d.position!))) : null);
+      sMinBy.set(sec.id, null);
     }
   }
 
@@ -205,20 +241,26 @@ export function packLayout(model: GraphModel, orientation: Orientation = "horizo
     for (let i = aIdx - 1; i >= 0; i--) sStart.set(order[i].id, sStart.get(order[i + 1].id)! - sizeS.get(order[i].id)!);
   }
 
-  // Shared long-axis range across every band (content plus the central margin).
-  let lMin = Infinity;
-  let lMax = -Infinity;
+  // Shared long-axis range across every band, anchored on the documents with room
+  // reserved before them for the central. The range extends in either direction as
+  // documents are dragged along the long axis, and the central tracks its start.
+  let lDocMin = Infinity;
+  let lDocMax = -Infinity;
   for (const sec of order) {
-    lMin = Math.min(lMin, M);
-    lMax = Math.max(lMax, M + CL);
     for (const d of docsBy.get(sec.id) ?? []) {
       const l = getL(d.position!);
-      lMin = Math.min(lMin, l);
-      lMax = Math.max(lMax, l + DL);
+      lDocMin = Math.min(lDocMin, l);
+      lDocMax = Math.max(lDocMax, l + DL);
     }
   }
-  const lStart = grow ? lMin - GEO.BAND_PAD : 0;
-  const lSize = grow ? Math.max(CANVAS_L, lMax + GEO.BAND_PAD - lStart) : CANVAS_L;
+  if (lDocMin === Infinity) {
+    lDocMin = RESERVE_L;
+    lDocMax = RESERVE_L;
+  }
+  const lStart = lDocMin - RESERVE_L;
+  const centralL = lStart + M;
+  const lEnd = Math.max(lDocMax, centralL + CL);
+  const lSize = Math.max(CANVAS_L, lEnd - lStart);
 
   const bands: BandBox[] = [];
   const posById = new Map<string, { x: number; y: number }>();
@@ -237,7 +279,7 @@ export function packLayout(model: GraphModel, orientation: Orientation = "horizo
       const list = docsBy.get(sec.id) ?? [];
       const raw = list.length && c.position ? getS(c.position) + deltaS : st + (sz - CS) / 2;
       const cs = clamp(raw, st, st + Math.max(0, sz - CS));
-      posById.set(c.id, mk(cs, M));
+      posById.set(c.id, mk(cs, centralL));
     }
   }
 
