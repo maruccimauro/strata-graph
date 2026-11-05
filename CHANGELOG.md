@@ -36,21 +36,25 @@ history; the project carried no tagged releases before this file was introduced.
   another. The hovered or selected node or edge rises within its layer either way.
   Available in Preferences, the View menu, the background context menu and a
   "⿻ Layers" quick-bar button.
-- Relational-integrity alert when a node is deleted: a delete confirmation shows
-  the two sides that lose a link (depends on, required by) and offers to rebuild
-  each prerequisite to dependent bridge that passed through the node, grouped by
-  prerequisite with a name filter and select or deselect all. Neighbors left
-  disconnected are flagged with expanding red waves, a broken-link badge and an
-  orphaned or partial severity, and a neighbor is marked only when no chosen
-  bridge still reaches it.
+- Relational-integrity alert when a node is deleted: only the nodes that depended
+  on it are affected (its own prerequisites are left alone). The delete
+  confirmation lists those dependents under Required by and offers to reconnect
+  each to one of the removed node's prerequisites, with a name filter and select
+  or deselect all. Deleting a node that nothing depends on raises no alert and
+  shows no dialog. Dependents left unreconnected are flagged with expanding red
+  waves, a broken-link badge and an orphaned or partial severity.
 - Rebuild relations panel with dotted ghost previews on the canvas, split into
-  Orphaned and Partial sections: reconnect or discard each broken link, reconnect
-  them all, unlink a node, or dismiss the event. A node name locates it on the
-  canvas with a bounced arrow, and Alt and hover a bridge previews what it
-  replaces. Reachable from the alert banner, the status-bar badge, the quick bar,
-  the View menu and the node and canvas context menus.
-- Delete the selected node with the Delete key, in addition to the node overlay
+  Orphaned and Partial sections: reconnect each dependent to one of the removed
+  node's prerequisites (clearing only that one), unlink it, reconnect all, or
+  dismiss the event. A node name locates it on the canvas with a bounced arrow,
+  and a reconnection previews what it replaces on [ALT + Mouse Hover]. Reachable
+  from the alert banner, the status-bar badge, the quick bar, the View menu and
+  the node and canvas context menus.
+- Delete the selected node with the [DELETE] key, in addition to the node overlay
   and context menu.
+- Convention for keyboard and pointer shortcuts in user-facing text: a single
+  bracketed token with keys in uppercase and pointer actions in title case (for
+  example [ALT + Mouse Hover], [CTRL + Z], [DELETE]).
 
 ## [0.8.0] - 2026-11-05
 

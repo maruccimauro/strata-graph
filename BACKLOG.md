@@ -93,6 +93,10 @@ Captured requirements for the editor. Grouped by theme. Many canvas items come
 - [ ] Section central **color config** (menu → panel; color first, more later).
 - [ ] Shared primitives: `Panel`, `Overlay`, `Menu`, `Toolbar` — a mini design system so
       every feature reuses the same blocks.
+- [ ] **Keyboard/pointer notation sweep**: migrate every shortcut reference in the
+      UI and the wiki to the bracketed form (keys UPPERCASE, pointer actions Title
+      Case, joined with ` + `, e.g. `[ALT + Mouse Hover]`, `[CTRL + Z]`, `[DELETE]`).
+      See `.claude/rules/keyboard-notation.md`.
 
 ## 6. Export `[ui]` `[RF]`
 - [ ] **Export to image**; choose specific sections or all; include/exclude comment flags.
