@@ -21,6 +21,16 @@ The central node shows two counts:
 
 The central node moves only across its band and stays anchored on the other axis: in a horizontal layout it slides up and down, in a vertical layout it slides left and right. Its travel is clamped to the band, so it never leaves its own section.
 
+## Bands grow to their content
+
+A band is sized to the nodes it holds. When you drag a node past the band's edge, the band grows to keep the node inside and the bands after it shift to make room, so nodes never overlap across bands. The band shrinks back when the node returns. Each orientation remembers its own arrangement, so growing a band in the horizontal layout does not affect the vertical one.
+
+This is on by default. Toggle **Grow bands to dragged content** from the **View** menu, the quick bar (**⇲ Grow**), the background right-click menu, or **Preferences ▸ Display**. When it is off, a node is confined to its band instead of growing it.
+
+::: info
+Moving a node to another section with the **Section** list places it in the target band's grid, rather than keeping its old spot.
+:::
+
 ## Assigning a node to a section
 
 Open a node's overlay and pick a section from the **Section** list (a filterable combobox). Choose `— none —` to make the node free-floating. See [Nodes](/modeling/nodes).

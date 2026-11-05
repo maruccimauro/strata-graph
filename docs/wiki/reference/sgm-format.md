@@ -11,13 +11,13 @@ A `.sgm` file is a versioned JSON envelope around a [Strata Graph Model](/models
 ```json
 {
   "format": "strata-graph-model",
-  "version": 1,
+  "version": 2,
   "model": { "meta": {}, "sections": [], "nodes": [], "edges": [] }
 }
 ```
 
 - **`format`** must be `"strata-graph-model"`. A file without it is rejected.
-- **`version`** is the format version (currently `1`). A newer version than the build understands is rejected rather than misread.
+- **`version`** is the format version (currently `2`). A newer version than the build understands is rejected rather than misread. A `version: 1` file still opens: its node positions are migrated on import.
 - **`model`** is the graph itself.
 
 ## The model
@@ -35,6 +35,7 @@ edges:    { id, source, target, kind, origin, via? }[]
 - `status` is `"generated" | "missing" | "unavailable"`.
 - `source` is the prerequisite; `target` depends on it.
 - `createdAt` and `dueAt` are epoch milliseconds; `locked` prevents dragging.
+- `position` for a document or central node is relative to its band origin (format `version: 2`); a comment or sectionless node keeps absolute canvas coordinates.
 
 ## Validation
 

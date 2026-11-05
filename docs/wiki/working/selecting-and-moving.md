@@ -23,6 +23,7 @@ Your selection survives edits: locking, changing a date, or any action that redr
 
 - **Drag** a node to reposition it. Positions are saved automatically, and kept separately for each band orientation (horizontal and vertical each remember their own arrangement).
 - **Section central nodes** move only across their band (up-down in a horizontal layout, left-right in a vertical one) and are anchored on the other axis; their travel is clamped so they stay inside the band.
+- **Drag a node past its band** and the band grows to keep it inside; the bands after it shift to make room. See [Sections](/modeling/sections) for the toggle that turns this off.
 - A **locked** node cannot be moved. See [Node metadata](/working/node-metadata).
 
 ## Pan and zoom
