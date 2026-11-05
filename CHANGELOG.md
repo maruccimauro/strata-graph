@@ -29,6 +29,10 @@ history; the project carried no tagged releases before this file was introduced.
   quick bar, the background context menu, and Preferences. Turning it off freezes
   the bands where they are and confines nodes to them, so dragging no longer resizes
   or reflows the layout; turning it back on lets the bands follow their content.
+- Dragging a multi-selection moves the group confined to the bands: it slides freely
+  along the shared direction (growing the bands with auto-grow on) and stops on the
+  stacking direction as soon as a selected node reaches its band edge, so a selection
+  spanning several bands cannot overlap them.
 
 ### Changed
 

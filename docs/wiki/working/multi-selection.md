@@ -20,6 +20,10 @@ When two or more nodes are selected, a **shared action bar** appears at the bott
 
 See [Node metadata](/working/node-metadata) for what locking does.
 
+## Moving a group
+
+Drag any selected node to move the whole group together. The group is confined to the bands: it slides freely along the shared direction (and, with auto-grow on, the bands grow to follow it), while on the stacking direction it stops as soon as a selected node reaches the edge of its band, so a selection that spans several bands cannot push them into each other. See [Sections](/modeling/sections) for how bands grow.
+
 ## Selection persists
 
 The selection survives canvas redraws. After you lock the group, change a date, or perform any action that rebuilds the canvas, the same nodes stay selected until you explicitly clear them.
