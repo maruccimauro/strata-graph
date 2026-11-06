@@ -56,11 +56,14 @@ history; the project carried no tagged releases before this file was introduced.
   the View menu and the node and canvas context menus.
 - Preferences for the broken-link alert (Relational integrity): wave on or off,
   intensity and speed, and ghost arrows on or off.
-- Delete the selected node with the [DELETE] key, in addition to the node overlay
-  and context menu.
-- Convention for keyboard and pointer shortcuts in user-facing text: a single
-  bracketed token with keys in uppercase and pointer actions in title case (for
-  example [ALT + Mouse Hover], [CTRL + Z], [DELETE]).
+- Delete the selected node with the <kbd>Delete</kbd> key, in addition to the node
+  overlay and context menu.
+- Keyboard shortcuts in the UI now render as `<kbd>` keycaps through shared `Kbd`
+  and `Shortcut` primitives (for example the Edit menu's undo and redo), matching
+  the wiki.
+- Convention for keyboard shortcuts in user-facing text: render each key as a
+  `<kbd>` keycap in its natural capitalization, joined with a plus (for example
+  `<kbd>Ctrl</kbd>+<kbd>Z</kbd>`), in both the UI and the wiki.
 
 ## [0.8.0] - 2026-11-05
 

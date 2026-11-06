@@ -15,7 +15,7 @@ from either place:
 
 - the node **overlay** action bar (🗑),
 - the node **context menu** (right click) ▸ **Delete**, or
-- the `[DELETE]` key with the node selected.
+- the <kbd>Delete</kbd> key with the node selected.
 
 ::: info
 Automatic nodes can now be deleted too. A deleted automatic node is kept out of
@@ -84,9 +84,10 @@ menu. Actions read bottom-up by **scope**:
 
 The event and global actions confirm first. The affected dependents are split into
 **Orphaned** and **Partial** sections, and each deletion's card collapses to its
-title. A quick bar at the top of the panel tunes the alert: toggle the waves,
-raise or lower their intensity and speed, and show or hide the ghost arrows (also
-in **Preferences ▸ Relational integrity**).
+title. A quick bar at the top of the panel tunes the alert: two toggles side by
+side show or hide the waves (〜) and the ghost arrows (⇢), each with a tooltip,
+followed by steppers to raise or lower the wave intensity and speed (also in
+**Preferences ▸ Relational integrity**).
 
 Click a dependent section to focus it: it centers the node on the canvas with a
 bounced arrow, highlights the section, and shows only that node's ghost arrows,
@@ -99,7 +100,7 @@ links, since they are notes rather than dependencies.
 
 ## Undo
 
-Deletion is a single step: **Undo** (`[CTRL + Z]`) reverts the node, its edges,
+Deletion is a single step: **Undo** (<kbd>Ctrl</kbd>+<kbd>Z</kbd>) reverts the node, its edges,
 any reconnections created, and the alert together. Undo is available for the
 current session; a reload keeps the result (and any pending alert) but clears the
 undo history. See [Undo and redo](/working/undo-redo).
