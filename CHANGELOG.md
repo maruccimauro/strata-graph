@@ -31,6 +31,11 @@ history; the project carried no tagged releases before this file was introduced.
   the same ones documents already show.
 - Band name and color controls in the band panel: rename a band and set its hue
   from the central, each with a reset to the built-in value.
+- Per-band grow toggle in the band panel: a band can grow or stay frozen
+  regardless of the global setting, which remains its default, with a reset to
+  follow the global toggle again.
+- Re-arrange action in the band panel that tidies a single band's nodes back to
+  the grid and sizes it to its content, leaving the other bands untouched.
 
 ### Changed
 

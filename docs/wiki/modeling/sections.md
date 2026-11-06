@@ -44,6 +44,12 @@ Each orientation remembers its own arrangement, so growing a band in the horizon
 
 This is on by default. Toggle **Grow bands to dragged content** from the **View** menu, the quick bar (**⇲ Grow**), the background right-click menu, or **Preferences ▸ Display**. Turning it off **freezes** the bands exactly where they are: the layout is kept, nodes are confined to their band, and dragging no longer resizes or reflows anything. Turn it back on to let the bands follow their content again.
 
+### Per-band grow
+
+The band panel has its own **⇲ Grow** toggle that overrides the global setting for that band: a band can grow while the rest are frozen, or stay frozen while the rest grow. The global toggle is the default for bands you have not overridden; **Reset** returns a band to following it. A frozen band keeps its current size and confines its nodes; the bands around it still pack to make room when a growing neighbor changes size.
+
+**Re-arrange** (also in the band panel) tidies that band's nodes back to the grid and sizes the band to its content, without touching the other bands.
+
 ::: info
 Moving a node to another section with the **Section** list places it in the target band's grid, rather than keeping its old spot.
 :::

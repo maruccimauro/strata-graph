@@ -26,7 +26,7 @@ Display toggles for the whole graph:
 - **Color edges by section**: edges take the color of the target node's section. Turn it off for neutral gray edges.
 - **Show dependency edges**: shows or hides the dependency edges, to declutter a dense graph.
 - **Highlight paths on hover**: lights a node's upstream and downstream paths as you hover it. Also the **✦ Paths** toolbar toggle. See [Highlighting](/working/highlighting).
-- **Grow bands to dragged content**: lets a band grow to keep a node dragged past its edge, pushing the neighboring bands on that side and growing the shared direction for every band. Turn it off to freeze the bands where they are and confine nodes to them. Also the **⇲ Grow** toolbar toggle. See [Sections](/modeling/sections).
+- **Grow bands to dragged content**: lets a band grow to keep a node dragged past its edge, pushing the neighboring bands on that side and growing the shared direction for every band. Turn it off to freeze the bands where they are and confine nodes to them. Also the **⇲ Grow** toolbar toggle. This is the default for every band; a band can override it from its own panel. See [Sections](/modeling/sections).
 
 ::: info
 A section's **color** and **name** are no longer set here. They now live in the **band panel**, opened from the band's central node. See [Sections](/modeling/sections).
