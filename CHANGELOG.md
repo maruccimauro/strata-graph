@@ -38,18 +38,24 @@ history; the project carried no tagged releases before this file was introduced.
   "⿻ Layers" quick-bar button.
 - Relational-integrity alert when a node is deleted: only the nodes that depended
   on it are affected (its own prerequisites are left alone). The delete
-  confirmation lists those dependents under Required by and offers to reconnect
-  each to one of the removed node's prerequisites, with a name filter and select
-  or deselect all. Deleting a node that nothing depends on raises no alert and
-  shows no dialog. Dependents left unreconnected are flagged with expanding red
-  waves, a broken-link badge and an orphaned or partial severity.
-- Rebuild relations panel with dotted ghost previews on the canvas, split into
-  Orphaned and Partial sections: reconnect each dependent to one of the removed
-  node's prerequisites (clearing only that one), unlink it, reconnect all, or
-  dismiss the event. A node name locates it on the canvas with a bounced arrow,
-  and a reconnection previews what it replaces on [ALT + Mouse Hover]. Reachable
-  from the alert banner, the status-bar badge, the quick bar, the View menu and
-  the node and canvas context menus.
+  confirmation lists those dependents under Required by, each with a checkbox per
+  prerequisite to reconnect to, a filter by dependent name, a global select or
+  deselect all, and a per-dependent all or none. Deleting a node that nothing
+  depends on raises no alert and shows no dialog. Dependents with an undecided
+  option are flagged with expanding red waves, a broken-link badge and an
+  orphaned or partial severity.
+- Rebuild relations panel with actions by scope: Connect or Remove one
+  prerequisite option (connecting one leaves the others to decide), Reconnect node
+  or Unlink node for one dependent, Reconnect or Dismiss one event, and Reconnect
+  all or Dismiss all across events (event and global confirm first). Dependents
+  split into Orphaned and Partial sections, each deletion collapses to its title,
+  and a quick bar tunes the alert waves and ghost arrows. Clicking a dependent
+  section focuses it: it centers the node, highlights the section, and shows only
+  that node's ghost arrows flowing from its prerequisites, with a hovered option
+  lit up. Reachable from the alert banner, the status-bar badge, the quick bar,
+  the View menu and the node and canvas context menus.
+- Preferences for the broken-link alert (Relational integrity): wave on or off,
+  intensity and speed, and ghost arrows on or off.
 - Delete the selected node with the [DELETE] key, in addition to the node overlay
   and context menu.
 - Convention for keyboard and pointer shortcuts in user-facing text: a single

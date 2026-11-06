@@ -30,26 +30,28 @@ it** (its dependents); its own prerequisites are left alone.
 
 So the dialog is organized around the dependents. If nothing depends on the node,
 it is deleted with no dialog and no alert. Otherwise, under **Required by**, each
-dependent is listed with the option to **reconnect** it to one of the deleted
-node's prerequisites (so it keeps an upstream link):
+dependent is listed with a checkbox for every prerequisite of the deleted node it
+could reconnect to (so it keeps an upstream link):
 
 - Every option is checked by default, so one click preserves the chain.
-- Use the filter box to narrow by name, and **Select all** / **Deselect all** to
-  toggle the options in view.
+- The filter box narrows the list by **dependent** name.
+- **Select all** / **Deselect all** at the top toggles every option in view; a
+  smaller **all** / **none** on each dependent toggles only that block.
 - A dependent that has no valid prerequisite to reconnect to is shown as such and
   will be left in alert.
 
-A preview names the dependents that will be left under a **broken-link alert** if
-you do not reconnect them, each tagged by severity:
+A preview names the dependents that will have an **undecided** option left, each
+tagged by severity:
 
 - **orphaned**: the node is left with no dependency links at all.
 - **partial**: it lost this link but keeps others.
 
-Press **Delete** to apply: chosen reconnections are created as manual edges, and
-the dependents you left are flagged.
+Press **Delete** to apply: checked options are created as manual edges, and the
+unchecked ones stay as pending decisions in Rebuild relations.
 
 ::: tip
 Leave every option checked and the chain is fully rebuilt, so no alert is raised.
+Deselect all to defer every decision to the Rebuild relations panel.
 :::
 
 ## The broken-link alert
@@ -70,21 +72,25 @@ marked), and the alert survives reloads until you resolve or dismiss it.
 
 Open the focused panel from the banner's **Rebuild relations**, the status-bar
 badge, the quick bar, **View ▸ Rebuild relations**, or a node or canvas context
-menu. While it is open, dotted **ghost arrows** preview the reconnection options
-on the canvas. The affected dependents are split into **Orphaned** and **Partial**
-sections. Click a node's name to center it on the canvas with a bounced arrow, or
-use `[ALT + Mouse Hover]` on an option to see what it replaces (**prerequisite →
-removed → dependent**).
+menu. Actions read bottom-up by **scope**:
 
-For each dependent you can:
+- **Option**: each prerequisite line has **Connect** (create that link) and
+  **Remove** (drop that option). Connecting one option leaves the dependent's
+  other options to decide, so it stays until each is handled.
+- **Dependent**: **Reconnect node** connects it to all its prerequisites,
+  **Unlink node** clears it from the alert.
+- **Event**: **Reconnect event** or **Dismiss event** for one deletion.
+- **Global**: **Reconnect all** or **Dismiss all** across every deletion.
 
-- **Reconnect** it to one of the removed node's prerequisites (its buttons).
-  Reconnecting a dependent clears only that one; the others stay.
-- **Unlink** it: clear it from the alert, marking it resolved on purpose.
+The event and global actions confirm first. The affected dependents are split into
+**Orphaned** and **Partial** sections, and each deletion's card collapses to its
+title. A quick bar at the top of the panel tunes the alert: toggle the waves,
+raise or lower their intensity and speed, and show or hide the ghost arrows (also
+in **Preferences ▸ Relational integrity**).
 
-Per event you can also **Reconnect all** (reconnect every pending dependent) or
-**Dismiss** (clear the whole event without reconnecting); both confirm first. An
-event disappears once no dependent is left to resolve.
+Click a dependent section to focus it: it centers the node on the canvas with a
+bounced arrow, highlights the section, and shows only that node's ghost arrows,
+flowing from its prerequisites. Hovering a prerequisite lights up its arrow.
 
 ::: info
 Comment links are never alerted. Deleting a node simply removes its comment
