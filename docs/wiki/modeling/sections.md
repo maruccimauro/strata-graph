@@ -76,6 +76,34 @@ Below the list, **Bulk actions** act on the whole band at once:
 Moving a node to another section with the **Section** list places it in the target band's grid, rather than keeping its old spot.
 :::
 
+## Deleting a band
+
+**Delete band…** removes a whole band. It is in the band panel menu and in a
+central's right-click menu. What happens next depends on whether the band has
+nodes:
+
+- An **empty band** is removed after a single confirmation.
+- A band **with nodes** opens a choice: **Move nodes first** or **Delete band and
+  nodes…**.
+
+**Move nodes first** puts the panel into a **migration view**. Every node still in
+the band is listed as pending, marked in red, with a **Move to…** picker to send
+it to another band (or **Move all to** for the whole list). As you reassign them,
+they leave the list. When you are done, **Delete band and N node(s)** removes the
+band together with whatever was not moved; if you moved them all, the button reads
+**Delete empty band**.
+
+Whenever nodes are actually deleted, Strata asks how to handle the connections
+that break: **Delete and track broken links** records them as a single rebuild
+alert (see [Deleting nodes](/working/deleting-nodes)), while **Delete without
+tracking** removes them silently. The entire band deletion, including the removed
+nodes, their edges and the alert, is a single step that **undo** reverts at once.
+
+::: warning
+Deleting a band removes its central and its nodes from the view. Nodes left
+unmigrated are deleted with the band. Use **Move nodes first** to keep them.
+:::
+
 ## Assigning a node to a section
 
 Open a node's overlay and pick a section from the **Section** list (a filterable combobox). Choose `— none —` to make the node free-floating. See [Nodes](/modeling/nodes).

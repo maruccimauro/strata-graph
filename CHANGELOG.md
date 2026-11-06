@@ -49,6 +49,14 @@ history; the project carried no tagged releases before this file was introduced.
 - Drag a band directly on the canvas: each band label carries a grip, and
   dragging it along the stacking direction shows a drop indicator and commits the
   new order on release, as a single undo step.
+- Delete a band, from the band panel or the central's context menu. An empty band
+  is removed after a confirmation; a band with nodes offers moving its nodes to
+  other bands first or deleting the band together with its nodes, and the deletion
+  asks whether to track the links it breaks as a rebuild alert. The whole
+  operation is a single, undoable step.
+- Migration view in the band panel: while a band is being deleted, its nodes are
+  listed as pending with a per-node picker to move each to another band (or all at
+  once), and a final action deletes the band with whatever was not moved.
 
 ### Changed
 
