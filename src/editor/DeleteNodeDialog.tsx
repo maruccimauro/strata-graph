@@ -37,7 +37,8 @@ export function DeleteNodeDialog({ node, analysis, labelOf, onConfirm, onCancel 
     for (const p of analysis.pairs) byDep.get(p.target)!.push(p);
     const rows = [...byDep.entries()].map(([dep, pairs]) => ({ dep, pairs }));
     if (!q) return rows;
-    return rows.filter((r) => labelOf(r.dep).toLowerCase().includes(q) || r.pairs.some((p) => labelOf(p.source).toLowerCase().includes(q)));
+    // Filter only by the dependent name (the section subtitle), not the options.
+    return rows.filter((r) => labelOf(r.dep).toLowerCase().includes(q));
   }, [analysis.dependents, analysis.pairs, filter, labelOf]);
 
   const visibleKeys = useMemo(() => groups.flatMap((g) => g.pairs.map(pairKey)), [groups]);
@@ -73,9 +74,11 @@ export function DeleteNodeDialog({ node, analysis, labelOf, onConfirm, onCancel 
       {hasDeps ? (
         <>
           <div style={{ fontSize: ".82rem", marginBottom: 8 }}>{t("delete.reconnectIntro")}</div>
+          {/* global scope: all prerequisites of every visible dependent */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <div style={labelStyle}>{t("delete.requiredBy")}</div>
             <span style={{ flex: 1 }} />
+            <span style={{ fontSize: ".66rem", color: MUTED }}>{t("delete.allPrereqs")}</span>
             <button onClick={() => setMany(visibleKeys, true)} style={linkBtn} disabled={visibleKeys.length === 0}>{t("delete.selectAll")}</button>
             <span style={{ color: MUTED, fontSize: ".7rem" }}>·</span>
             <button onClick={() => setMany(visibleKeys, false)} style={linkBtn} disabled={visibleKeys.length === 0}>{t("delete.deselectAll")}</button>
@@ -83,27 +86,38 @@ export function DeleteNodeDialog({ node, analysis, labelOf, onConfirm, onCancel 
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder={t("delete.filterPh")}
+            placeholder={t("delete.filterDepPh")}
             style={{ font: "inherit", fontSize: ".78rem", padding: "5px 8px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--panel)", color: "var(--ink)", width: "100%", marginBottom: 6 }}
           />
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10, maxHeight: 230, overflowY: "auto" }}>
-            {groups.map(({ dep, pairs }) => (
-              <div key={dep}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                  <b style={{ fontSize: ".82rem" }}>{labelOf(dep)}</b>
-                  <span style={{ fontSize: ".7rem", color: MUTED }}>{pairs.length ? t("delete.reconnectTo") : t("delete.noReconnect")}</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 10, maxHeight: 230, overflowY: "auto" }}>
+            {groups.map(({ dep, pairs }) => {
+              const keys = pairs.map(pairKey);
+              return (
+                <div key={dep} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "6px 8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                    <b style={{ fontSize: ".82rem" }}>{labelOf(dep)}</b>
+                    <span style={{ fontSize: ".7rem", color: MUTED }}>{pairs.length ? t("delete.reconnectTo") : t("delete.noReconnect")}</span>
+                    <span style={{ flex: 1 }} />
+                    {pairs.length > 0 && (
+                      <span style={{ display: "inline-flex", gap: 5, alignItems: "center" }}>
+                        <button onClick={() => setMany(keys, true)} style={miniLink} title={t("delete.blockAll.tip")}>{t("delete.blockAll")}</button>
+                        <span style={{ color: MUTED, fontSize: ".66rem" }}>·</span>
+                        <button onClick={() => setMany(keys, false)} style={miniLink} title={t("delete.blockNone.tip")}>{t("delete.blockNone")}</button>
+                      </span>
+                    )}
+                  </div>
+                  {pairs.map((pp) => {
+                    const k = pairKey(pp);
+                    return (
+                      <label key={k} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: ".82rem", cursor: "pointer", padding: "2px 2px 2px 10px" }}>
+                        <input type="checkbox" checked={accepted.has(k)} onChange={() => toggle(k)} />
+                        <span>{labelOf(pp.source)}</span>
+                      </label>
+                    );
+                  })}
                 </div>
-                {pairs.map((p) => {
-                  const k = pairKey(p);
-                  return (
-                    <label key={k} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: ".82rem", cursor: "pointer", padding: "2px 2px 2px 10px" }}>
-                      <input type="checkbox" checked={accepted.has(k)} onChange={() => toggle(k)} />
-                      <span>{labelOf(p.source)}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            ))}
+              );
+            })}
             {groups.length === 0 && <div style={{ fontSize: ".78rem", color: MUTED, padding: "4px 2px" }}>{t("delete.noMatches")}</div>}
           </div>
 
@@ -145,4 +159,13 @@ const linkBtn = {
   cursor: "pointer",
   fontSize: ".72rem",
   padding: 0,
+};
+const miniLink = {
+  border: "none",
+  background: "transparent",
+  color: "var(--muted)",
+  cursor: "pointer",
+  fontSize: ".66rem",
+  padding: 0,
+  textDecoration: "underline",
 };

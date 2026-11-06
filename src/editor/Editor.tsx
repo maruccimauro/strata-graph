@@ -18,7 +18,7 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
-import { analyzeBreak, buildBreakEvent, alertedNodes, normalizeEvent, resolveDependent, purgeNode, type BreakAnalysis } from "./integrity";
+import { analyzeBreak, buildBreakEvent, alertedNodes, dropPair, dropDependent, purgeNode, type BreakAnalysis } from "./integrity";
 import { persist, pickFile, openPath, DEFAULT_PREFS, nextLayerOrder, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap, type BreakEvent } from "./api";
 import { t, setLang } from "./i18n";
 import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
@@ -91,6 +91,12 @@ export function Editor({
   // Node to locate (centered + bounced arrow) from the Rebuild panel; cleared when
   // the panel closes or the node leaves the alert.
   const [locateNode, setLocateNode] = useState<string | null>(null);
+  // Rebuild panel focus: the dependent whose section is active (its ghosts flow,
+  // the others hide), the reconnection option under the cursor (its ghost lights
+  // up), and the deletion events collapsed to their header.
+  const [activeDep, setActiveDep] = useState<string | null>(null);
+  const [hoverOption, setHoverOption] = useState<{ source: string; target: string } | null>(null);
+  const [collapsedEvents, setCollapsedEvents] = useState<string[]>([]);
   // Edge retarget in progress (N-25): one endpoint follows the cursor while the
   // other stays fixed. Keeps the original overlay anchor so Esc can reopen it.
   const [retarget, setRetarget] = useState<
@@ -108,11 +114,38 @@ export function Editor({
   // pulse, and the dotted ghost bridges previewed while the rebuild panel is open.
   const alerts = useMemo(() => state.alerts ?? [], [state.alerts]);
   const alertMap = useMemo(() => alertedNodes(alerts), [alerts]);
-  const ghostBridges = useMemo(() => (rebuildOpen ? alerts.flatMap((ev) => ev.pairs) : []), [rebuildOpen, alerts]);
+  // Ghost reconnection arrows while the panel is open: with a dependent section
+  // active, only that dependent's options show (and flow); the one under the
+  // cursor lights up. Hidden when ghosts are turned off.
+  const ghostBridges = useMemo(() => {
+    if (!rebuildOpen || !prefs.alertGhosts) return [];
+    const all = alerts.flatMap((ev) => ev.pairs);
+    const list = activeDep ? all.filter((p) => p.target === activeDep) : all;
+    return list.map((p) => ({
+      source: p.source,
+      target: p.target,
+      state: (hoverOption && hoverOption.source === p.source && hoverOption.target === p.target ? "hot" : activeDep ? "flow" : "idle") as "hot" | "flow" | "idle",
+    }));
+  }, [rebuildOpen, prefs.alertGhosts, alerts, activeDep, hoverOption]);
   // Clear the located node's arrow once the panel closes or the node is resolved.
   useEffect(() => {
     if (locateNode && (!rebuildOpen || !alertMap.has(locateNode))) setLocateNode(null);
   }, [locateNode, rebuildOpen, alertMap]);
+  // Reset the panel focus when it closes or the active dependent is resolved.
+  useEffect(() => {
+    if (activeDep && (!rebuildOpen || !alertMap.has(activeDep))) setActiveDep(null);
+    if (!rebuildOpen) { setHoverOption(null); }
+  }, [activeDep, rebuildOpen, alertMap]);
+  // Reflect the alert visual preferences as CSS variables / a root class so the
+  // wave animation and its on/off state apply live.
+  useEffect(() => {
+    const root = document.documentElement;
+    const dur = prefs.alertWaveSpeed >= 3 ? "1.1s" : prefs.alertWaveSpeed <= 1 ? "2.6s" : "1.8s";
+    const spread = prefs.alertWaveIntensity >= 3 ? "14px" : prefs.alertWaveIntensity <= 1 ? "6px" : "9px";
+    root.style.setProperty("--wave-dur", dur);
+    root.style.setProperty("--wave-spread", spread);
+    root.classList.toggle("no-alert-waves", !prefs.alertWaves);
+  }, [prefs.alertWaves, prefs.alertWaveIntensity, prefs.alertWaveSpeed]);
   const labelOf = useCallback((id: string) => model.nodes.find((n) => n.id === id)?.label ?? id, [model]);
   const infoOf = useCallback(
     (id: string) => {
@@ -304,35 +337,57 @@ export function Editor({
     [model, performDelete],
   );
 
-  /** Update one event in place and drop it if nothing is left to resolve. */
-  const updateEvent = useCallback(
-    (eventId: string, fn: (ev: BreakEvent) => BreakEvent) =>
+  /** Apply fn to one event and drop it if it resolves to null. */
+  const editEvent = useCallback(
+    (eventId: string, fn: (ev: BreakEvent) => BreakEvent | null) =>
       commit((s) => ({
         ...s,
-        alerts: (s.alerts ?? []).flatMap((ev) => (ev.id === eventId ? [normalizeEvent(fn(ev))].filter((x): x is BreakEvent => x !== null) : [ev])),
+        alerts: (s.alerts ?? []).flatMap((ev) => {
+          if (ev.id !== eventId) return [ev];
+          const r = fn(ev);
+          return r ? [r] : [];
+        }),
       })),
     [commit],
   );
 
-  /** Reconnect a dependent: create the prerequisite -> dependent edge and resolve
-   *  that dependent (it now has a prerequisite). Other dependents are untouched. */
-  const reconnectPair = useCallback(
-    (eventId: string, pair: { source: string; target: string }) => {
+  // ----- option scope: connect / remove one prerequisite option -----
+  const connectOption = useCallback(
+    (eventId: string, pair: { source: string; target: string }) =>
       commit((s) => ({
         ...s,
         manualEdges: addBridge(s.manualEdges ?? [], pair.source, pair.target),
-        alerts: (s.alerts ?? []).flatMap((ev) => {
-          if (ev.id !== eventId) return [ev];
-          const r = resolveDependent(ev, pair.target);
-          return r ? [r] : [];
-        }),
-      }));
-    },
+        alerts: (s.alerts ?? []).flatMap((ev) => { if (ev.id !== eventId) return [ev]; const r = dropPair(ev, pair); return r ? [r] : []; }),
+      })),
     [commit, addBridge],
   );
-  /** Reconnect every pending dependent of an event to all of its options. */
-  const reconnectAllEvent = useCallback(
-    (eventId: string) => {
+  const removeOption = useCallback(
+    (eventId: string, pair: { source: string; target: string }) => editEvent(eventId, (ev) => dropPair(ev, pair)),
+    [editEvent],
+  );
+
+  // ----- dependent scope: reconnect to all options / unlink -----
+  const reconnectDep = useCallback(
+    (eventId: string, depId: string) =>
+      commit((s) => {
+        const ev = (s.alerts ?? []).find((e) => e.id === eventId);
+        if (!ev) return s;
+        let manualEdges = s.manualEdges ?? [];
+        for (const p of ev.pairs) if (p.target === depId) manualEdges = addBridge(manualEdges, p.source, p.target);
+        return { ...s, manualEdges, alerts: (s.alerts ?? []).flatMap((e) => (e.id === eventId ? [dropDependent(e, depId)].filter((x): x is BreakEvent => x !== null) : [e])) };
+      }),
+    [commit, addBridge],
+  );
+  const unlinkDep = useCallback((eventId: string, depId: string) => editEvent(eventId, (ev) => dropDependent(ev, depId)), [editEvent]);
+  const unlinkNodeEverywhere = useCallback(
+    (nodeId: string) =>
+      commit((s) => ({ ...s, alerts: (s.alerts ?? []).flatMap((ev) => { if (!ev.info[nodeId]) return [ev]; const r = dropDependent(ev, nodeId); return r ? [r] : []; }) })),
+    [commit],
+  );
+
+  // ----- event scope: reconnect every dependent / dismiss -----
+  const reconnectEvent = useCallback(
+    (eventId: string) =>
       commit((s) => {
         const ev = (s.alerts ?? []).find((e) => e.id === eventId);
         if (!ev) return s;
@@ -342,80 +397,65 @@ export function Editor({
         return {
           ...s,
           manualEdges,
-          alerts: (s.alerts ?? []).flatMap((e) => {
-            if (e.id !== eventId) return [e];
-            let r: BreakEvent | null = e;
-            for (const d of targets) { if (!r) break; r = resolveDependent(r, d); }
-            return r ? [r] : [];
-          }),
+          alerts: (s.alerts ?? []).flatMap((e) => { if (e.id !== eventId) return [e]; let r: BreakEvent | null = e; for (const d of targets) { if (!r) break; r = dropDependent(r, d); } return r ? [r] : []; }),
         };
-      });
-    },
+      }),
     [commit, addBridge],
   );
-  /** Unlink a dependent from one event (mark it resolved on purpose). */
-  const unlinkNeighbor = useCallback(
-    (eventId: string, nodeId: string) => updateEvent(eventId, (ev) => resolveDependent(ev, nodeId) ?? { ...ev, info: {} }),
-    [updateEvent],
-  );
-  /** Unlink a node from every event it appears in (used from its overlay/menu). */
-  const unlinkNodeEverywhere = useCallback(
-    (nodeId: string) =>
-      commit((s) => ({
-        ...s,
-        alerts: (s.alerts ?? []).flatMap((ev) => {
-          if (!ev.info[nodeId]) return [ev];
-          const r = resolveDependent(ev, nodeId);
+  const dismissEvent = useCallback((eventId: string) => commit((s) => ({ ...s, alerts: (s.alerts ?? []).filter((e) => e.id !== eventId) })), [commit]);
+
+  // ----- global scope: reconnect / dismiss every event -----
+  const reconnectAllGlobal = useCallback(
+    () =>
+      commit((s) => {
+        let manualEdges = s.manualEdges ?? [];
+        for (const ev of s.alerts ?? []) for (const p of ev.pairs) manualEdges = addBridge(manualEdges, p.source, p.target);
+        const alerts = (s.alerts ?? []).flatMap((ev) => {
+          const targets = new Set(ev.pairs.map((p) => p.target));
+          let r: BreakEvent | null = ev;
+          for (const d of targets) { if (!r) break; r = dropDependent(r, d); }
           return r ? [r] : [];
-        }),
-      })),
-    [commit],
+        });
+        return { ...s, manualEdges, alerts };
+      }),
+    [commit, addBridge],
   );
-  const resolveEvent = useCallback(
-    (eventId: string) => commit((s) => ({ ...s, alerts: (s.alerts ?? []).filter((e) => e.id !== eventId) })),
-    [commit],
-  );
+  const dismissAllGlobal = useCallback(() => commit((s) => ({ ...s, alerts: [] })), [commit]);
+
   /** Hide one event's banner (nodes stay marked). View-only, so not undoable. */
   const hideEvent = useCallback(
     (eventId: string) => patch((s) => ({ ...s, alerts: (s.alerts ?? []).map((e) => (e.id === eventId ? { ...e, hidden: true } : e)) })),
     [patch],
   );
 
-  // Confirmation wrappers for the destructive/bulk alert actions.
+  // Confirmation wrappers for the bulk actions (single options and single
+  // dependents act directly; event and global scopes confirm first).
   const requestUnlinkNode = useCallback(
     (nodeId: string) =>
-      setConfirm({
-        title: t("confirm.unlink.title"),
-        message: t("confirm.unlink.body", { name: labelOf(nodeId) }),
-        confirmLabel: t("rebuild.unlink"),
-        onConfirm: () => { unlinkNodeEverywhere(nodeId); setConfirm(null); },
-      }),
+      setConfirm({ title: t("confirm.unlink.title"), message: t("confirm.unlink.body", { name: labelOf(nodeId) }), confirmLabel: t("rebuild.unlinkNode"), onConfirm: () => { unlinkNodeEverywhere(nodeId); setConfirm(null); } }),
     [labelOf, unlinkNodeEverywhere],
+  );
+  const requestReconnectEvent = useCallback(
+    (eventId: string) => {
+      const ev = (state.alerts ?? []).find((e) => e.id === eventId);
+      setConfirm({ title: t("confirm.reconnectEvent.title"), message: t("confirm.reconnectEvent.body", { name: ev?.removedLabel ?? "" }), confirmLabel: t("rebuild.reconnectEvent"), onConfirm: () => { reconnectEvent(eventId); setConfirm(null); } });
+    },
+    [state.alerts, reconnectEvent],
   );
   const requestDismissEvent = useCallback(
     (eventId: string) => {
       const ev = (state.alerts ?? []).find((e) => e.id === eventId);
-      setConfirm({
-        title: t("confirm.dismiss.title"),
-        message: t("confirm.dismiss.body", { name: ev?.removedLabel ?? "" }),
-        confirmLabel: t("rebuild.dismiss"),
-        danger: true,
-        onConfirm: () => { resolveEvent(eventId); setConfirm(null); },
-      });
+      setConfirm({ title: t("confirm.dismiss.title"), message: t("confirm.dismiss.body", { name: ev?.removedLabel ?? "" }), confirmLabel: t("rebuild.dismissEvent"), danger: true, onConfirm: () => { dismissEvent(eventId); setConfirm(null); } });
     },
-    [state.alerts, resolveEvent],
+    [state.alerts, dismissEvent],
   );
   const requestReconnectAll = useCallback(
-    (eventId: string) => {
-      const ev = (state.alerts ?? []).find((e) => e.id === eventId);
-      setConfirm({
-        title: t("confirm.reconnectAll.title"),
-        message: t("confirm.reconnectAll.body", { count: ev?.pairs.length ?? 0 }),
-        confirmLabel: t("rebuild.reconnectAll"),
-        onConfirm: () => { reconnectAllEvent(eventId); setConfirm(null); },
-      });
-    },
-    [state.alerts, reconnectAllEvent],
+    () => setConfirm({ title: t("confirm.reconnectAll.title"), message: t("confirm.reconnectAll.body"), confirmLabel: t("rebuild.reconnectAll"), onConfirm: () => { reconnectAllGlobal(); setConfirm(null); } }),
+    [reconnectAllGlobal],
+  );
+  const requestDismissAll = useCallback(
+    () => setConfirm({ title: t("confirm.dismissAll.title"), message: t("confirm.dismissAll.body"), confirmLabel: t("rebuild.dismissAll"), danger: true, onConfirm: () => { dismissAllGlobal(); setConfirm(null); } }),
+    [dismissAllGlobal],
   );
   /** Center the canvas on a node and point a bounced arrow at it (from the Rebuild
    *  panel). The arrow clears when the panel closes or the node leaves the alert. */
@@ -1218,10 +1258,21 @@ export function Editor({
         <RebuildRelationsPanel
           alerts={alerts}
           labelOf={labelOf}
-          onReconnectPair={reconnectPair}
-          onUnlink={unlinkNeighbor}
+          prefs={prefs}
+          onSetPrefs={setPrefs}
+          onConnectOption={connectOption}
+          onRemoveOption={removeOption}
+          onReconnectDep={reconnectDep}
+          onUnlinkDep={unlinkDep}
+          onReconnectEvent={requestReconnectEvent}
+          onDismissEvent={requestDismissEvent}
           onReconnectAll={requestReconnectAll}
-          onResolveEvent={requestDismissEvent}
+          onDismissAll={requestDismissAll}
+          activeDep={activeDep}
+          onActivateDep={setActiveDep}
+          onHoverOption={setHoverOption}
+          collapsed={collapsedEvents}
+          onToggleCollapse={(id) => setCollapsedEvents((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))}
           onLocate={onLocateNode}
           onClose={() => setRebuildOpen(false)}
         />

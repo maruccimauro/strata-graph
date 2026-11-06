@@ -71,8 +71,10 @@ export interface StrataCanvasProps {
   onSelectEdge: (id: string | null) => void;
   /** nodes under a relational-integrity alert (N-44), with worst severity. */
   alerts: Map<string, AlertSeverity>;
-  /** dotted ghost bridges previewed while the Rebuild relations panel is open. */
-  ghostBridges: { source: string; target: string }[];
+  /** dotted ghost reconnection arrows previewed while the Rebuild panel is open.
+   *  "flow" animates from prerequisite to dependent; "hot" is the one under the
+   *  cursor; "idle" is a static dotted preview. */
+  ghostBridges: { source: string; target: string; state: "hot" | "flow" | "idle" }[];
   /** click on a node's broken-link badge: ask to unlink it from the alert. */
   onAlertBadge: (nodeId: string) => void;
   /** node to point at with a bounced arrow (located from the Rebuild panel). */
@@ -793,7 +795,7 @@ function buildEdges(
   hoverEdge: string | null,
   onAnchorGrab: (id: string, source: string, target: string, end: "source" | "target", x: number, y: number) => void,
   retargetingId: string | null,
-  ghostBridges: { source: string; target: string }[],
+  ghostBridges: { source: string; target: string; state: "hot" | "flow" | "idle" }[],
 ): Edge[] {
   const { laid, sectionHue, byId, up, down, incoming } = info;
   // class for an edge: selected (glow marker) and/or retargeting (blinks while
@@ -893,12 +895,13 @@ function buildEdges(
     });
   }
 
-  // Ghost bridges (N-44): view-only dotted previews of the prerequisite ->
-  // dependent reconnections offered while the Rebuild relations panel is open.
-  // They are not part of the model; they ride on top so they read clearly.
+  // Ghost reconnection arrows (N-44): view-only dotted previews of the
+  // prerequisite -> dependent reconnections offered while the Rebuild panel is
+  // open. They are not part of the model; they ride on top so they read clearly.
   for (const g of ghostBridges) {
     if (!byId.has(g.source) || !byId.has(g.target)) continue;
     const col = ghostCol();
+    const hot = g.state === "hot";
     rfEdges.push({
       id: `ghost:${g.source}->${g.target}`,
       type: "floating",
@@ -906,9 +909,9 @@ function buildEdges(
       target: g.target,
       selectable: false,
       focusable: false,
-      className: "edge-ghost-bridge",
+      className: g.state === "hot" ? "edge-ghost-hot" : g.state === "flow" ? "edge-ghost-flow" : "edge-ghost-bridge",
       zIndex: EDGE_FLOOR(prefs.layerOrder) + 1 + LAYER_ACTIVE,
-      style: { stroke: col, strokeWidth: 2, strokeDasharray: "4 4", opacity: 0.9 },
+      style: { stroke: col, strokeWidth: hot ? 3 : 2, strokeDasharray: "4 4", opacity: hot ? 1 : 0.9, filter: hot ? glowFilter(col) : undefined },
       data: { kind: "dependency" },
       markerEnd: { type: MarkerType.ArrowClosed, color: col },
     });

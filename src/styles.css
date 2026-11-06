@@ -99,23 +99,36 @@ body {
    visible between waves; orphaned nodes (no links left) ring stronger and faster
    than partially affected ones. Rings ride with the node and compose over the
    selection border instead of replacing it. */
+:root {
+  --wave-dur: 1.8s;
+  --wave-spread: 9px;
+}
+/* A steady base ring so the node stays marked even with waves off. */
+.strata-alert {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ghost) 55%, transparent);
+}
 .strata-alert-partial {
-  animation: strata-wave-partial 1.8s ease-out infinite;
+  animation: strata-wave-partial var(--wave-dur) ease-out infinite;
 }
 .strata-alert-orphan {
-  animation: strata-wave-orphan 1.4s ease-out infinite;
+  animation: strata-wave-orphan calc(var(--wave-dur) * 0.8) ease-out infinite;
+}
+/* Turning waves off keeps the static base ring. */
+:root.no-alert-waves .strata-alert-partial,
+:root.no-alert-waves .strata-alert-orphan {
+  animation: none;
 }
 /* An expanding ring that grows and fades outward, reading as a wave. Drawn with
-   box-shadow so it needs no extra elements (pseudo-elements animated inside a
-   measured React Flow node can trigger a measurement loop) and rides with the
-   node. A steady inner ring keeps it visible between waves. */
+   box-shadow (no pseudo-elements, which inside a measured React Flow node can
+   trigger a measurement loop); spread and speed come from CSS variables set from
+   the alert preferences. Orphaned nodes ring wider than partial ones. */
 @keyframes strata-wave-partial {
   0% {
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--ghost) 60%, transparent), 0 0 0 1px color-mix(in srgb, var(--ghost) 55%, transparent);
   }
   70%,
   100% {
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ghost) 60%, transparent), 0 0 3px 9px transparent;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ghost) 60%, transparent), 0 0 3px var(--wave-spread) transparent;
   }
 }
 @keyframes strata-wave-orphan {
@@ -124,7 +137,21 @@ body {
   }
   70%,
   100% {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ghost) 85%, transparent), 0 0 4px 13px transparent;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ghost) 85%, transparent), 0 0 4px calc(var(--wave-spread) + 4px) transparent;
+  }
+}
+/* ghost reconnection arrows: idle (static blink), flow (dashes travel from the
+   prerequisite toward the dependent), hot (the option under the cursor). */
+.react-flow__edge.edge-ghost-flow .react-flow__edge-path,
+.react-flow__edge.edge-ghost-hot .react-flow__edge-path {
+  animation: strata-ghost-flow 0.7s linear infinite;
+}
+.react-flow__edge.edge-ghost-hot .react-flow__edge-path {
+  animation-duration: 0.45s;
+}
+@keyframes strata-ghost-flow {
+  to {
+    stroke-dashoffset: -16;
   }
 }
 /* the Rebuild panel's "locate" arrow bounces above the node it points at */

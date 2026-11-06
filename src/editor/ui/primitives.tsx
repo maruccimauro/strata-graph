@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type CSSProperties, type Ref } from "react";
+import { useState, type ReactNode, type CSSProperties, type Ref, type MouseEvent } from "react";
 import { PANEL, INK, MUTED } from "../theme";
 
 /** Shared button. `variant`: default | primary | ghost | danger. */
@@ -12,7 +12,7 @@ export function Button({
   style,
 }: {
   children: ReactNode;
-  onClick?: () => void;
+  onClick?: (e?: MouseEvent<HTMLButtonElement>) => void;
   title?: string;
   variant?: "default" | "primary" | "ghost" | "danger";
   active?: boolean;

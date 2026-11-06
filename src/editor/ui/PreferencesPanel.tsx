@@ -256,7 +256,27 @@ function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partia
       </Field>
     </Group>
     <Group title={t("prefs.integrity.title")}>
-      <p style={{ margin: 0, fontSize: ".76rem", color: MUTED, lineHeight: 1.5 }}>{t("prefs.integrity.help")}</p>
+      <Field label={t("prefs.alertWaves")} hint={t("prefs.alertWaves.hint")}>
+        <input type="checkbox" checked={prefs.alertWaves} onChange={(e) => onChange({ alertWaves: e.target.checked })} />
+      </Field>
+      <Field label={t("prefs.alertWaveIntensity")}>
+        <div style={{ display: "flex", gap: 6 }}>
+          {[1, 2, 3].map((v) => (
+            <Segmented key={v} label={String(v)} active={prefs.alertWaveIntensity === v} onClick={() => onChange({ alertWaveIntensity: v })} />
+          ))}
+        </div>
+      </Field>
+      <Field label={t("prefs.alertWaveSpeed")}>
+        <div style={{ display: "flex", gap: 6 }}>
+          {[1, 2, 3].map((v) => (
+            <Segmented key={v} label={String(v)} active={prefs.alertWaveSpeed === v} onClick={() => onChange({ alertWaveSpeed: v })} />
+          ))}
+        </div>
+      </Field>
+      <Field label={t("prefs.alertGhosts")} hint={t("prefs.alertGhosts.hint")}>
+        <input type="checkbox" checked={prefs.alertGhosts} onChange={(e) => onChange({ alertGhosts: e.target.checked })} />
+      </Field>
+      <p style={{ margin: "6px 0 0", fontSize: ".76rem", color: MUTED, lineHeight: 1.5 }}>{t("prefs.integrity.help")}</p>
     </Group>
     </>
   );

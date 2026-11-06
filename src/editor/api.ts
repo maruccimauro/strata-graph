@@ -33,6 +33,15 @@ export interface Prefs {
    *  (each competes by its own z-index). The hovered/selected element rises within
    *  its layer regardless. */
   layerOrder: LayerOrder;
+  /** broken-link alert (N-44): animate the ring as expanding waves (off = a
+   *  static ring). */
+  alertWaves: boolean;
+  /** wave spread strength, 1 (subtle) .. 3 (strong). */
+  alertWaveIntensity: number;
+  /** wave speed, 1 (slow) .. 3 (fast). */
+  alertWaveSpeed: number;
+  /** show the dotted reconnection ghost arrows in the Rebuild relations mode. */
+  alertGhosts: boolean;
 }
 
 export type LayerOrder = "nodes" | "edges" | "free";
@@ -52,6 +61,10 @@ export const DEFAULT_PREFS: Prefs = {
   autoGrowBands: true,
   lang: "en",
   layerOrder: "nodes",
+  alertWaves: true,
+  alertWaveIntensity: 2,
+  alertWaveSpeed: 2,
+  alertGhosts: true,
 };
 
 export type Orientation = Prefs["layout"];
