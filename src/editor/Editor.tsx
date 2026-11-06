@@ -1094,6 +1094,7 @@ export function Editor({
     ...(!connected && onLoadModel ? [{ label: t("ctx.newModel"), onClick: () => setNewModelOpen(true) }] : []),
     { label: t("menu.view.fit"), onClick: onFit },
     { label: t("menu.view.reset"), onClick: onResetLayout },
+    { label: t("menu.view.layout", { value: t(prefs.layout === "vertical" ? "layout.vertical" : "layout.horizontal") }), onClick: () => setPrefs({ layout: prefs.layout === "vertical" ? "horizontal" : "vertical" }) },
     { label: "", onClick: () => {}, separator: true },
     { label: t("menu.view.hoverPaths"), checked: prefs.hoverHighlight, onClick: () => setPrefs({ hoverHighlight: !prefs.hoverHighlight }) },
     { label: t("menu.view.autoGrow"), checked: prefs.autoGrowBands, onClick: () => setPrefs({ autoGrowBands: !prefs.autoGrowBands }) },

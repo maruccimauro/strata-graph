@@ -10,7 +10,7 @@ title: Context menus
 
 Right-click empty space (or a section band) for graph-wide actions:
 
-- **Add node**, **Fit to screen**, **Reset layout**.
+- **Add node**, **Fit to screen**, **Reset layout**, and **Layout** to rotate between horizontal rows and vertical columns.
 - Toggles: **Highlight paths on hover**, **Show dependency edges**, **Dim not-generated**.
 - **Layers**: cycles the node/edge stacking order (nodes on top, edges on top, free).
 - **Toggle theme** and **Preferences**.
