@@ -19,7 +19,7 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
-import { analyzeBreak, buildBreakEvent, alertedNodes, dropPair, dropDependent, purgeNode, type BreakAnalysis } from "./integrity";
+import { analyzeBreak, analyzeBreakMany, buildBreakEvent, alertedNodes, dropPair, dropDependent, purgeNode, type BreakAnalysis } from "./integrity";
 import { persist, pickFile, openPath, DEFAULT_PREFS, nextLayerOrder, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap, type BreakEvent } from "./api";
 import { t, setLang } from "./i18n";
 import type { GraphNode, GraphEdge, GraphModel, Section } from "../core/types";
@@ -321,6 +321,35 @@ export function Editor({
     [commit, addBridge],
   );
 
+  /** Delete a set of nodes at once (the band panel's "delete all"): one commit, a
+   *  single merged break event for every dependent left unresolved, so undo
+   *  reverts the whole band's deletion together. Missing nodes are excluded by the
+   *  caller (they are not real nodes to remove). */
+  const performBulkDelete = useCallback(
+    (ids: string[], removedLabel: string) => {
+      if (ids.length === 0) return;
+      const idSet = new Set(ids);
+      const analysis = analyzeBreakMany(model, ids);
+      const event = buildBreakEvent(analysis, removedLabel, new Set(), Date.now());
+      commit((s) => {
+        const manualIds = new Set((s.manualNodes ?? []).filter((n) => idSet.has(n.id)).map((n) => n.id));
+        const manualNodes = (s.manualNodes ?? []).filter((n) => !idSet.has(n.id));
+        const autoIds = ids.filter((id) => !manualIds.has(id));
+        const removedNodes = [...(s.removedNodes ?? []), ...autoIds];
+        const manualEdges = (s.manualEdges ?? []).filter((e) => !idSet.has(e.source) && !idSet.has(e.target));
+        const purged = (s.alerts ?? []).flatMap((ev) => {
+          let r: BreakEvent | null = ev;
+          for (const id of ids) { if (!r) break; r = purgeNode(r, id); }
+          return r ? [r] : [];
+        });
+        const nextAlerts = event ? [...purged, event] : purged;
+        return { ...s, manualNodes, removedNodes, manualEdges, alerts: nextAlerts };
+      });
+      setBandPanel(null);
+    },
+    [model, commit],
+  );
+
   /** Entry point for deleting a node: analyze the relational impact. When the
    *  node has dependency neighbors, open the confirmation (with bridge preview);
    *  otherwise delete straight away (nothing to rebuild). */
@@ -492,6 +521,41 @@ export function Editor({
         return { ...s, sectionOverrides: { ...(s.sectionOverrides ?? {}), [id]: sectionId }, pos };
       }),
     [commit],
+  );
+
+  /** Move several nodes to another band in one commit (the band panel's "move all
+   *  to…"), dropping each one's saved position in every orientation so they
+   *  re-grid into the target band. Mirrors onSetSection for a set. */
+  const onSetSectionMany = useCallback(
+    (ids: string[], sectionId: string) =>
+      commit((s) => {
+        const idSet = new Set(ids);
+        const pos: Partial<Record<Orientation, Record<string, { x: number; y: number }>>> = { ...(s.pos ?? {}) };
+        for (const o of Object.keys(pos) as Orientation[]) {
+          const m = pos[o];
+          if (!m) continue;
+          const next = { ...m };
+          for (const id of ids) delete next[id];
+          pos[o] = next;
+        }
+        const sectionOverrides = { ...(s.sectionOverrides ?? {}) };
+        for (const id of idSet) sectionOverrides[id] = sectionId;
+        return { ...s, sectionOverrides, pos };
+      }),
+    [commit],
+  );
+
+  /** Confirm before deleting every node of a band (band panel bulk action). */
+  const requestBandBulkDelete = useCallback(
+    (ids: string[], bandLabel: string) =>
+      setConfirm({
+        title: t("band.bulk.delete.title"),
+        message: t("band.bulk.delete.body", { count: String(ids.length), label: bandLabel }),
+        confirmLabel: t("band.bulk.delete.confirm"),
+        danger: true,
+        onConfirm: () => { performBulkDelete(ids, bandLabel); setConfirm(null); },
+      }),
+    [performBulkDelete],
   );
 
   const onSetNodeMeta = useCallback(
@@ -1121,8 +1185,15 @@ export function Editor({
           customLabel={(state.sectionLabels ?? {})[bandPanel.section.id] !== undefined}
           grow={(state.bandGrow ?? {})[bandPanel.section.id] ?? prefs.autoGrowBands}
           growOverridden={(state.bandGrow ?? {})[bandPanel.section.id] !== undefined}
+          nodes={model.nodes.filter((n) => n.kind === "doc" && n.sectionId === bandPanel.section.id)}
+          sections={model.sections}
           onClose={() => setBandPanel(null)}
           onSetNodeMeta={onSetNodeMeta}
+          onSetNodeMetaMany={onSetNodeMetaMany}
+          onSetSectionMany={onSetSectionMany}
+          onRequestDeleteNode={onRequestDeleteNode}
+          onRequestBulkDelete={requestBandBulkDelete}
+          onOpenNode={(node) => { setBandPanel(null); setOverlay({ node, x: bandPanel.x, y: bandPanel.y }); }}
           onSetSectionHue={setSectionHue}
           onResetSectionHue={resetSectionHue}
           onSetSectionLabel={setSectionLabel}

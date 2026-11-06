@@ -55,6 +55,65 @@ export function analyzeBreak(model: GraphModel, id: string): BreakAnalysis {
   return { dependents, prereqs, pairs, lonely, info };
 }
 
+/** Combined break analysis for deleting a SET of nodes at once (the bulk "delete
+ *  all" of a band). Same dependent-centric model as analyzeBreak: only nodes
+ *  OUTSIDE the set that depended on a deleted node are flagged, each reconnectable
+ *  to the external prerequisites of the deleted nodes it depended on (immediate
+ *  neighbors, mirroring the single-node rule). Edges internal to the set vanish
+ *  silently. Produces one analysis so the caller registers a single BreakEvent for
+ *  the whole operation. Computed from the current render model before deletion. */
+export function analyzeBreakMany(model: GraphModel, ids: string[]): BreakAnalysis {
+  const removed = new Set(ids);
+  const deps = model.edges.filter((e) => e.kind === "dependency");
+  const remaining = deps.filter((e) => !removed.has(e.source) && !removed.has(e.target));
+  const existing = new Set(remaining.map((e) => key(e)));
+
+  // external prerequisites (outside the set) of each deleted node
+  const prereqsOf = new Map<string, Set<string>>();
+  for (const e of deps) {
+    if (removed.has(e.target) && !removed.has(e.source)) {
+      let set = prereqsOf.get(e.target);
+      if (!set) prereqsOf.set(e.target, (set = new Set()));
+      set.add(e.source);
+    }
+  }
+
+  // dependents (outside the set) and the prereqs they can reconnect to: the union
+  // of the external prerequisites of the deleted nodes each one depended on.
+  const depPrereqs = new Map<string, Set<string>>();
+  for (const e of deps) {
+    if (removed.has(e.source) && !removed.has(e.target)) {
+      let set = depPrereqs.get(e.target);
+      if (!set) depPrereqs.set(e.target, (set = new Set()));
+      for (const p of prereqsOf.get(e.source) ?? []) set.add(p);
+    }
+  }
+
+  const dependents = Array.from(depPrereqs.keys());
+  const prereqs = Array.from(new Set(Array.from(prereqsOf.values()).flatMap((s) => Array.from(s))));
+
+  const pairs: { source: string; target: string }[] = [];
+  for (const [d, ps] of depPrereqs) {
+    for (const p of ps) {
+      if (p === d) continue;
+      if (existing.has(`${p}${SEP}${d}`)) continue;
+      pairs.push({ source: p, target: d });
+    }
+  }
+
+  const degree = new Map<string, number>();
+  for (const e of remaining) {
+    degree.set(e.source, (degree.get(e.source) ?? 0) + 1);
+    degree.set(e.target, (degree.get(e.target) ?? 0) + 1);
+  }
+  const info: Record<string, { role: AlertRole; severity: AlertSeverity }> = {};
+  for (const d of dependents) info[d] = { role: "dependent", severity: (degree.get(d) ?? 0) === 0 ? "orphan" : "partial" };
+
+  const hasPair = new Set(pairs.map((p) => p.target));
+  const lonely = dependents.filter((d) => !hasPair.has(d));
+  return { dependents, prereqs, pairs, lonely, info };
+}
+
 /** Build the persisted BreakEvent from an analysis and the options accepted at
  *  delete time. Accepted (checked) options are created as edges by the caller;
  *  the unchecked ones stay as pending decisions. A dependent is flagged while it
