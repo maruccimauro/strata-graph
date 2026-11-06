@@ -57,6 +57,13 @@ history; the project carried no tagged releases before this file was introduced.
 - Migration view in the band panel: while a band is being deleted, its nodes are
   listed as pending with a per-node picker to move each to another band (or all at
   once), and a final action deletes the band with whatever was not moved.
+- Quick bar "Rotate" button that switches the layout between horizontal rows and
+  vertical columns, next to the existing View menu and Preferences controls.
+- Quick bar zoom control that shows the current zoom and lets it be set to an exact
+  percentage, with step buttons, clamped to the canvas zoom range.
+- Bulk removal of a node's dependency links by direction: remove every "depends on"
+  link, every "required by" link, or all of them at once, from the node context
+  menu and the connections panel. Each removal is a single undo step.
 
 ### Changed
 
@@ -72,6 +79,8 @@ history; the project carried no tagged releases before this file was introduced.
 - Band panel reorganized as a compact menu: Appearance, Schedule, Grow & arrange,
   Band order and Nodes each open on their own screen with a Back link, so the
   panel no longer stacks every control into one list that overflows the viewport.
+- Top menus (File, Edit, View) open on hover once one of them is open; a click is
+  only needed to open the first menu or to reopen after clicking away.
 
 - `BACKLOG.md` restructured to track only pending work, with one canonical entry
   per requirement and explicit status and priority. Completed items are no longer

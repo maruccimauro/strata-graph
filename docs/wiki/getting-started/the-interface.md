@@ -14,22 +14,24 @@ At the top are three dropdown menus:
 - **Edit**: Undo, Redo, Preferences.
 - **View**: Fit to screen, Reset layout, the preference toggles, Toggle theme.
 
+Once any menu is open, hovering another menu label opens it; a click is only needed to open the first menu, or to reopen after clicking away or picking an item.
+
 On the right, a badge shows the active mode (**● Connected** or **○ Static**) and a summary: project name, generated/total documents, and section count.
 
 ## Quick toolbar
 
 Below the menu bar, a toolbar repeats the most used actions:
 
-**＋ Node** · **⊕ New** · undo · redo · **⇩ PNG** · **⤢ Fit** · **⟳ Reset** · **✦ Paths** · **Dim ∅** · **⿻ Layers** · **⚙ Preferences** · **◐ theme**.
+**＋ Node** · **⊕ New** · undo · redo · **⇩ PNG** · **⤢ Fit** · **⟳ Reset** · **⇄ Rotate** · the zoom control · **✦ Paths** · **⇲ Grow** · **Dim ∅** · **⿻ Layers** · **⚙ Preferences** · **◐ theme**.
 
-**✦ Paths** and **Dim ∅** are toggles: they stay highlighted while on. **⿻ Layers** cycles the stacking order (nodes on top, edges on top, free).
+**✦ Paths**, **⇲ Grow** and **Dim ∅** are toggles: they stay highlighted while on. **⿻ Layers** cycles the stacking order (nodes on top, edges on top, free). **⇄ Rotate** switches the layout between horizontal rows and vertical columns. The zoom control (**−**, a percentage field, **＋**) shows the current zoom and sets it to an exact value; type a percentage and press <kbd>Enter</kbd>.
 
 ## Canvas
 
 The canvas is where the graph lives:
 
 - **Pan**: hold the middle mouse button (the wheel) and drag anywhere.
-- **Zoom**: the mouse wheel, or the controls at the bottom left.
+- **Zoom**: the mouse wheel, the controls at the bottom left, or the zoom field in the quick toolbar (type an exact percentage).
 - **Box-select**: drag on empty space to select several nodes.
 - **Minimap**: bottom right, pannable and zoomable.
 - **Layout**: switch between horizontal rows and vertical columns from **View ▸ Layout** or **Preferences ▸ General**.

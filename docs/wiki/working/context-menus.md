@@ -23,6 +23,7 @@ Right-click a node:
 - **Lock / Unlock** the node so it cannot be moved. See [Node metadata](/working/node-metadata).
 - **Connect** to another node, and **Add comment**.
 - **Manage connections** opens the node's connection manager, which lists every edge on the node with a per-row remove. See [Edges](/modeling/edges).
+- Bulk-remove the node's dependency links by direction, when it has any: **Remove all 'depends on' links**, **Remove all 'required by' links**, or **Remove all dependency links**. Each is a single undo step and leaves comment links untouched.
 - When the node is under a broken-link alert, **Rebuild relations** and **Unlink from alert** appear. See [Deleting nodes](/working/deleting-nodes).
 - **Delete** the node (manual or automatic). See [Deleting nodes](/working/deleting-nodes).
 

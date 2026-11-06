@@ -35,7 +35,9 @@ A node with no incoming dependency is linked to its section's central node by a 
 
 ## Manage a node's connections
 
-To see and prune every edge on a single node, open its **connection manager**: the **⛓** button in the node overlay action bar, or **Manage connections…** in the node's [context menu](/working/context-menus). It lists each edge touching the node with its direction, **Depends on** (a prerequisite of this node), **Required by** (a node that depends on this one), or **Comment**, and the node at the other end with its section. The **🗑** on a row removes that edge; the list refreshes in place and removals are undoable with `Ctrl+Z`. Branch edges are structural and never appear here.
+To see and prune every edge on a single node, open its **connection manager**: the **⛓** button in the node overlay action bar, or **Manage connections…** in the node's [context menu](/working/context-menus). It lists each edge touching the node with its direction, **Depends on** (a prerequisite of this node), **Required by** (a node that depends on this one), or **Comment**, and the node at the other end with its section. The **🗑** on a row removes that edge; the list refreshes in place and removals are undoable with <kbd>Ctrl</kbd>+<kbd>Z</kbd>. Branch edges are structural and never appear here.
+
+A toolbar at the top of the panel removes dependency links in bulk, by direction: **Remove depends-on**, **Remove required-by**, or **Remove all**, each showing how many it will remove. The same actions are in the node's [context menu](/working/context-menus). Comment links are left untouched, and each bulk removal is a single undo step.
 
 ## Inspect
 
