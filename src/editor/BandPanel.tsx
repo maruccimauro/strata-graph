@@ -23,14 +23,20 @@ export interface BandPanelProps {
   sections: Section[];
   /** vertical layout: bands stack left-to-right, so "up/down" reads "left/right". */
   vertical: boolean;
+  /** the band is being deleted and its nodes migrated to other bands first. */
+  migrating: boolean;
   onMoveSection: (id: string, dir: -1 | 1) => void;
   onReorderSection: (id: string, targetIndex: number) => void;
   onClose: () => void;
   onSetNodeMeta: (id: string, meta: { createdAt?: number; dueAt?: number; locked?: boolean }) => void;
   onSetNodeMetaMany: (ids: string[], meta: { dueAt?: number; locked?: boolean }) => void;
+  onSetSection: (id: string, sectionId: string) => void;
   onSetSectionMany: (ids: string[], sectionId: string) => void;
   onRequestDeleteNode: (id: string) => void;
   onRequestBulkDelete: (ids: string[], bandLabel: string) => void;
+  onRequestDeleteBand: (section: Section) => void;
+  onFinishMigration: (section: Section) => void;
+  onCancelMigration: () => void;
   onOpenNode: (node: GraphNode) => void;
   onSetSectionHue: (id: string, hue: number) => void;
   onResetSectionHue: (id: string) => void;
@@ -59,14 +65,19 @@ export function BandPanel({
   nodes,
   sections,
   vertical,
+  migrating,
   onMoveSection,
   onReorderSection,
   onClose,
   onSetNodeMeta,
   onSetNodeMetaMany,
+  onSetSection,
   onSetSectionMany,
   onRequestDeleteNode,
   onRequestBulkDelete,
+  onRequestDeleteBand,
+  onFinishMigration,
+  onCancelMigration,
   onOpenNode,
   onSetSectionHue,
   onResetSectionHue,
@@ -80,6 +91,9 @@ export function BandPanel({
   const y = Math.min(at.y + 12, window.innerHeight - 340);
 
   const [view, setView] = useState<BandView>("menu");
+  // While migrating the band away, the panel shows only the migration view; its own
+  // sub-view navigation is suspended until the band is deleted or migration is cancelled.
+  const eff: BandView | "migrate" = migrating ? "migrate" : view;
 
   const rows = [...nodes].sort((a, b) => a.label.localeCompare(b.label));
   const allIds = rows.map((n) => n.id);
@@ -178,18 +192,81 @@ export function BandPanel({
   const scheduleHint = `${central.locked ? "🔒" : ""}${central.dueAt ? " ⏳" : ""}`.trim();
 
   return (
-    <Panel title={t("band.panel.title", { label: section.label })} onClose={onClose} style={{ left: x, top: y, width: 300 }}>
-      {view === "menu" && (
+    <Panel title={migrating ? t("band.migrate.title", { label: section.label }) : t("band.panel.title", { label: section.label })} onClose={onClose} style={{ left: x, top: y, width: 300 }}>
+      {eff === "menu" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
           <MenuItem to="appearance" label={t("band.menu.appearance")} hint={customLabel || customHue ? t("band.menu.custom") : undefined} />
           <MenuItem to="schedule" label={t("band.menu.schedule")} hint={scheduleHint || undefined} />
           <MenuItem to="layout" label={t("band.menu.layout")} hint={grow ? t("band.menu.growOn") : t("band.menu.growOff")} />
           <MenuItem to="order" label={t("band.reorder")} hint={<PositionHint />} />
           <MenuItem to="nodes" label={t("band.nodes")} hint={`${rows.length}`} />
+          <button
+            onClick={() => onRequestDeleteBand(section)}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: 8,
+              padding: "9px 11px", border: "1px solid var(--line)", borderRadius: 8, background: "var(--panel)",
+              color: "#c0392b", cursor: "pointer", font: "inherit", fontSize: ".84rem", marginTop: 3,
+            }}
+          >
+            <span>{t("band.delete")}</span>
+            <span style={{ opacity: 0.7 }}>›</span>
+          </button>
         </div>
       )}
 
-      {view === "appearance" && (
+      {eff === "migrate" && (
+        <div>
+          <div style={{ fontSize: ".78rem", color: MUTED, lineHeight: 1.45, marginBottom: 10 }}>{t("band.migrate.body")}</div>
+          {rows.length === 0 ? (
+            <div style={{ fontSize: ".78rem", color: MUTED, lineHeight: 1.4, marginBottom: 10 }}>{t("band.migrate.done")}</div>
+          ) : (
+            <div style={{ maxHeight: 220, overflowY: "auto", margin: "0 -2px 10px" }}>
+              {rows.map((n) => (
+                <div
+                  key={n.id}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, padding: "4px 6px", marginBottom: 3, borderRadius: 6,
+                    background: "rgba(192,57,43,.12)", border: "1px solid rgba(192,57,43,.45)",
+                  }}
+                >
+                  <span aria-hidden title={t("band.migrate.pending")} style={{ color: "#c0392b", fontSize: ".85rem", lineHeight: 1 }}>⊘</span>
+                  <span style={{ flex: 1, fontSize: ".8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.label}</span>
+                  <div style={{ width: 118 }}>
+                    <Combobox
+                      value=""
+                      options={otherSections.map((s) => ({ value: s.id, label: s.label }))}
+                      onChange={(v) => { if (v) onSetSection(n.id, v); }}
+                      placeholder={t("band.migrate.moveTo")}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {rows.length > 0 && otherSections.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <Field label={t("band.bulk.moveAll")}>
+                <div style={{ width: 150 }}>
+                  <Combobox
+                    value=""
+                    options={otherSections.map((s) => ({ value: s.id, label: s.label }))}
+                    onChange={(v) => { if (v) onSetSectionMany(allIds, v); }}
+                    placeholder={t("band.bulk.moveAll.ph")}
+                  />
+                </div>
+              </Field>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 7, paddingTop: 8, borderTop: "1px solid var(--line)" }}>
+            <Button variant="ghost" onClick={onCancelMigration}>{t("band.migrate.cancel")}</Button>
+            <Button variant="danger" onClick={() => onFinishMigration(section)}>
+              {rows.length === 0 ? t("band.migrate.deleteEmpty") : t("band.migrate.deleteRest", { count: String(rows.length) })}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {eff === "appearance" && (
         <div>
           <SubHeader title={t("band.menu.appearance")} />
           <Field label={t("band.name")}>
@@ -223,7 +300,7 @@ export function BandPanel({
         </div>
       )}
 
-      {view === "schedule" && (
+      {eff === "schedule" && (
         <div>
           <SubHeader title={t("band.menu.schedule")} />
           <div style={{ marginBottom: 8 }}>
@@ -262,7 +339,7 @@ export function BandPanel({
         </div>
       )}
 
-      {view === "layout" && (
+      {eff === "layout" && (
         <div>
           <SubHeader title={t("band.menu.layout")} />
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -277,7 +354,7 @@ export function BandPanel({
         </div>
       )}
 
-      {view === "order" && (
+      {eff === "order" && (
         <div>
           <SubHeader title={t("band.reorder")} />
           <div onPointerMove={gripMove} onPointerUp={gripUp} onPointerCancel={gripUp} style={{ maxHeight: 260, overflowY: "auto", margin: "0 -2px" }}>
@@ -312,7 +389,7 @@ export function BandPanel({
         </div>
       )}
 
-      {view === "nodes" && (
+      {eff === "nodes" && (
         <div>
           <SubHeader title={`${t("band.nodes")} (${rows.length})`} />
           {rows.length === 0 ? (

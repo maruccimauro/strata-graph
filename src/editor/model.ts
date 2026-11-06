@@ -1,4 +1,5 @@
 import type { GraphModel, GraphNode, GraphEdge } from "../core/types";
+import { orderedSections } from "../core/reorder";
 import type { ViewerState } from "./api";
 
 /** Merge the base (built-in model/scan) graph with the user's editor state into the
@@ -13,6 +14,7 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
   const labels = state.sectionLabels ?? {};
   const meta = state.nodeMeta ?? {};
   const seen = new Set(state.seenGenerated ?? []);
+  const removedSections = new Set(state.removedSections ?? []);
 
   const withMeta = (n: GraphNode): GraphNode => {
     const m = meta[n.id];
@@ -24,6 +26,11 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
       locked: m.locked ?? n.locked,
     };
   };
+
+  // A node whose effective section was removed is dropped: band deletion purges or
+  // reassigns its nodes, so this is a defensive filter that keeps a stale state from
+  // rendering nodes (or their central) under a section that no longer exists.
+  const inRemovedSection = (sectionId: string | undefined): boolean => sectionId !== undefined && removedSections.has(sectionId);
 
   const removedNodes = new Set(state.removedNodes ?? []);
   const nodes: GraphNode[] = graph.nodes
@@ -43,8 +50,10 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
         sectionId: overrides[n.id] ?? n.sectionId,
         position: pos[n.id] ?? n.position,
       });
-    });
+    })
+    .filter((n) => !inRemovedSection(n.sectionId));
   for (const m of state.manualNodes ?? []) {
+    if (inRemovedSection(m.sectionId)) continue;
     nodes.push(withMeta({ ...m, position: pos[m.id] ?? m.position }));
   }
 
@@ -56,13 +65,18 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
     .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
 
   const orders = state.sectionOrder ?? {};
-  const sections = graph.sections.map((s) => {
-    const hue = hues[s.id];
-    const label = labels[s.id];
-    const order = orders[s.id];
-    if (hue === undefined && label === undefined && order === undefined) return s;
-    return { ...s, hue: hue ?? s.hue, label: label ?? s.label, order: order ?? s.order };
-  });
+  const survivors = graph.sections
+    .filter((s) => !removedSections.has(s.id))
+    .map((s) => {
+      const hue = hues[s.id];
+      const label = labels[s.id];
+      const order = orders[s.id];
+      if (hue === undefined && label === undefined && order === undefined) return s;
+      return { ...s, hue: hue ?? s.hue, label: label ?? s.label, order: order ?? s.order };
+    });
+  // Reindex to a contiguous 0..n-1 order so a deleted band leaves no gap; every
+  // consumer reads order only as a relative sort key, so this preserves placement.
+  const sections = orderedSections(survivors).map((s, i) => ({ ...s, order: i }));
 
   return { ...graph, sections, nodes, edges };
 }

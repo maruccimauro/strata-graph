@@ -129,6 +129,9 @@ export interface ViewerState {
   /** per-section order overrides over the built-in model's order; when present it
    *  is a full, contiguous map (0..n-1) produced by the reorder reducer. */
   sectionOrder?: Record<string, number>;
+  /** section ids the user deleted (kept out of the render model on reload). Their
+   *  per-section overrides are purged on deletion; only undo restores them. */
+  removedSections?: string[];
   /** per-section auto-grow override over the global `prefs.autoGrowBands`; a section
    *  absent from the map follows the global toggle. */
   bandGrow?: Record<string, boolean>;

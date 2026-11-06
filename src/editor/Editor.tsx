@@ -15,10 +15,12 @@ import { RelationAlertBanner } from "./RelationAlertBanner";
 import { TopBar } from "./ui/TopBar";
 import { ContextMenu, type ContextMenuItem } from "./ui/ContextMenu";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
+import { ChoiceDialog } from "./ui/ChoiceDialog";
 import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
+import { deleteBandPatch } from "./bands";
 import { reorderSections, moveSection } from "../core/reorder";
 import { analyzeBreak, analyzeBreakMany, buildBreakEvent, alertedNodes, dropPair, dropDependent, purgeNode, type BreakAnalysis } from "./integrity";
 import { persist, pickFile, openPath, DEFAULT_PREFS, nextLayerOrder, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap, type BreakEvent } from "./api";
@@ -64,6 +66,11 @@ export function Editor({
   const [themeKey, setThemeKey] = useState(0);
   const [overlay, setOverlay] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
   const [bandPanel, setBandPanel] = useState<{ section: Section; central: GraphNode; x: number; y: number } | null>(null);
+  // Band deletion (N-34 lote 5): the choice dialog (entry: migrate / delete, then
+  // the M3 track / do-not-track stage) and the id of the band whose nodes are being
+  // migrated to other bands before the band itself is removed.
+  const [bandDelete, setBandDelete] = useState<{ section: Section; nodeIds: string[]; stage: "entry" | "m3" } | null>(null);
+  const [migratingBand, setMigratingBand] = useState<string | null>(null);
   const [edgesPanel, setEdgesPanel] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
   const [edgeOverlay, setEdgeOverlay] = useState<{ id: string; source: string; target: string; deletable: boolean; x: number; y: number } | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
@@ -571,6 +578,62 @@ export function Editor({
     [commit, model.sections],
   );
 
+  // ----- band deletion with migration (N-34 lote 5) -----
+  /** Every node (central excluded) currently in a band: the set removed with it. */
+  const bandNodeIds = useCallback(
+    (sectionId: string) => model.nodes.filter((n) => n.kind === "doc" && n.sectionId === sectionId).map((n) => n.id),
+    [model.nodes],
+  );
+
+  /** Remove a band and the given nodes in a single commit (undo reverts it whole).
+   *  When `track` is set, the broken links are recorded as one merged alert so they
+   *  can be rebuilt (M3); otherwise the band and its nodes are deleted silently. */
+  const performBandDelete = useCallback(
+    (section: Section, nodeIds: string[], track: boolean) => {
+      const event = track && nodeIds.length > 0 ? buildBreakEvent(analyzeBreakMany(model, nodeIds), section.label, new Set(), Date.now()) : null;
+      commit((s) => deleteBandPatch(s, { sectionId: section.id, nodeIds, event }));
+      setBandDelete(null);
+      setMigratingBand(null);
+      setBandPanel(null);
+      setOverlay(null);
+      setSelectedNode((cur) => (cur && nodeIds.includes(cur) ? null : cur));
+    },
+    [model, commit],
+  );
+
+  /** Entry point for deleting a band (central context menu / band panel). An empty
+   *  band is removed after a plain confirmation; a band with nodes opens the choice
+   *  dialog (migrate first, or delete the band together with its nodes). */
+  const onRequestDeleteBand = useCallback(
+    (section: Section) => {
+      const ids = bandNodeIds(section.id);
+      if (ids.length === 0) {
+        setConfirm({
+          title: t("band.delete.title", { label: section.label }),
+          message: t("band.delete.empty.body", { label: section.label }),
+          confirmLabel: t("band.delete.confirm"),
+          danger: true,
+          onConfirm: () => { performBandDelete(section, [], false); setConfirm(null); },
+        });
+        return;
+      }
+      setBandDelete({ section, nodeIds: ids, stage: "entry" });
+    },
+    [bandNodeIds, performBandDelete],
+  );
+
+  /** Finish a migration: delete the band together with whatever nodes were not
+   *  moved out. No remaining nodes means the band is now empty, so it is removed
+   *  straight away; otherwise the M3 track / do-not-track stage decides. */
+  const onFinishMigration = useCallback(
+    (section: Section) => {
+      const ids = bandNodeIds(section.id);
+      if (ids.length === 0) { performBandDelete(section, [], false); return; }
+      setBandDelete({ section, nodeIds: ids, stage: "m3" });
+    },
+    [bandNodeIds, performBandDelete],
+  );
+
   const onSetNodeMeta = useCallback(
     (id: string, m: { createdAt?: number; dueAt?: number; locked?: boolean }) =>
       commit((s) => {
@@ -1038,6 +1101,8 @@ export function Editor({
         { label: "", onClick: () => {}, separator: true },
         { label: isV ? t("band.moveLeft") : t("band.moveUp"), disabled: idx <= 0, onClick: () => onMoveSection(section.id, -1) },
         { label: isV ? t("band.moveRight") : t("band.moveDown"), disabled: idx >= ordered.length - 1, onClick: () => onMoveSection(section.id, 1) },
+        { label: "", onClick: () => {}, separator: true },
+        { label: t("band.delete"), danger: true, onClick: () => onRequestDeleteBand(section) },
       ];
     }
     const items: ContextMenuItem[] = [
@@ -1210,14 +1275,19 @@ export function Editor({
           nodes={model.nodes.filter((n) => n.kind === "doc" && n.sectionId === bandPanel.section.id)}
           sections={model.sections}
           vertical={(prefs.layout ?? "horizontal") === "vertical"}
+          migrating={migratingBand === bandPanel.section.id}
           onMoveSection={onMoveSection}
           onReorderSection={onReorderSection}
-          onClose={() => setBandPanel(null)}
+          onClose={() => { setBandPanel(null); setMigratingBand(null); }}
           onSetNodeMeta={onSetNodeMeta}
           onSetNodeMetaMany={onSetNodeMetaMany}
+          onSetSection={onSetSection}
           onSetSectionMany={onSetSectionMany}
           onRequestDeleteNode={onRequestDeleteNode}
           onRequestBulkDelete={requestBandBulkDelete}
+          onRequestDeleteBand={onRequestDeleteBand}
+          onFinishMigration={onFinishMigration}
+          onCancelMigration={() => setMigratingBand(null)}
           onOpenNode={(node) => { setBandPanel(null); setOverlay({ node, x: bandPanel.x, y: bandPanel.y }); }}
           onSetSectionHue={setSectionHue}
           onResetSectionHue={resetSectionHue}
@@ -1456,6 +1526,30 @@ export function Editor({
           danger={confirm.danger}
           onConfirm={confirm.onConfirm}
           onCancel={() => setConfirm(null)}
+        />
+      )}
+
+      {bandDelete && bandDelete.stage === "entry" && (
+        <ChoiceDialog
+          title={t("band.delete.title", { label: bandDelete.section.label })}
+          message={t("band.delete.entry.body", { count: String(bandDelete.nodeIds.length), label: bandDelete.section.label })}
+          actions={[
+            { label: t("band.delete.migrate"), variant: "primary", onClick: () => { setMigratingBand(bandDelete.section.id); setBandDelete(null); } },
+            { label: t("band.delete.withNodes"), variant: "danger", onClick: () => setBandDelete({ ...bandDelete, stage: "m3" }) },
+          ]}
+          onCancel={() => setBandDelete(null)}
+        />
+      )}
+
+      {bandDelete && bandDelete.stage === "m3" && (
+        <ChoiceDialog
+          title={t("band.delete.m3.title", { count: String(bandDelete.nodeIds.length) })}
+          message={t("band.delete.m3.body")}
+          actions={[
+            { label: t("band.delete.track"), variant: "primary", onClick: () => performBandDelete(bandDelete.section, bandDelete.nodeIds, true) },
+            { label: t("band.delete.noTrack"), variant: "danger", onClick: () => performBandDelete(bandDelete.section, bandDelete.nodeIds, false) },
+          ]}
+          onCancel={() => setBandDelete(null)}
         />
       )}
 
