@@ -75,7 +75,8 @@ Working editor: connected scan, banded dependency graph, drag + persistence,
 manual nodes/edges with a direction dialog, comments, node and edge overlays
 with an icon action bar, node lock and due dates, multi-selection, undo/redo,
 live theme, preferences, PNG export, and Strata Graph Model (`.sgm`)
-import/export. Remaining refinements in [`BACKLOG.md`](BACKLOG.md).
+import/export. Pending work is tracked in [`BACKLOG.md`](BACKLOG.md); product
+direction and milestones in [`ROADMAP.md`](ROADMAP.md).
 
 ## License
 
