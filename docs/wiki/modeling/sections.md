@@ -52,10 +52,11 @@ The band panel has its own **⇲ Grow** toggle that overrides the global setting
 
 ## Reordering bands
 
-The band panel lists every band, in order, under **Band order**, with the current one highlighted. Reorder them in two ways:
+The band panel lists every band, in order, under **Band order**, with the current one highlighted. Reorder them in three ways:
 
 - The **↑** and **↓** buttons move a band one step at a time.
-- The **grip** (**⠿**) drags a band to a new position; the list previews the new order as you drag and commits it when you drop.
+- The **grip** (**⠿**) in the list drags a band to a new position; the list previews the new order as you drag and commits it when you drop.
+- On the canvas, each band label has its own **⠿** grip: drag it along the stacking direction and a line shows where the band will land; release to drop it there.
 
 A right-click on a central also offers **Move band up** and **Move band down**. Every reorder is a single undo step, and the canvas re-packs the bands into the new order immediately. The order is a display override; it does not change the underlying **Strata Graph Model**.
 

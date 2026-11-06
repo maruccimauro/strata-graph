@@ -46,6 +46,9 @@ history; the project carried no tagged releases before this file was introduced.
   per-row up and down buttons or by dragging a grip, and a central's context menu
   offers Move band up and Move band down. Each reorder is a single undo step and
   the canvas re-packs immediately.
+- Drag a band directly on the canvas: each band label carries a grip, and
+  dragging it along the stacking direction shows a drop indicator and commits the
+  new order on release, as a single undo step.
 
 ### Changed
 
