@@ -1,4 +1,5 @@
-import { useState, type ReactNode, type CSSProperties, type Ref, type MouseEvent } from "react";
+import { useState, useRef, useEffect, type ReactNode, type CSSProperties, type Ref, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { PANEL, INK, MUTED } from "../theme";
 
 /** Shared button. `variant`: default | primary | ghost | danger. */
@@ -173,11 +174,34 @@ export function Combobox({
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Bump to recompute the dropdown's anchored position on scroll / resize so it
+  // stays glued to the input even when an ancestor scrolls.
+  const [, setTick] = useState(0);
   const sel = options.find((o) => o.value === value);
   const filtered = options.filter((o) => o.label.toLowerCase().includes(q.toLowerCase()));
+
+  useEffect(() => {
+    if (!open) return;
+    const reposition = () => setTick((n) => n + 1);
+    // capture so scroll of any ancestor container is caught, not just the window.
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [open]);
+
+  // The dropdown renders in a portal with fixed positioning so it is never clipped
+  // by an ancestor with `overflow` (e.g. the migration node list). Anchored to the
+  // input's current bounding box.
+  const rect = open ? inputRef.current?.getBoundingClientRect() : undefined;
+
   return (
     <div style={{ position: "relative" }}>
       <input
+        ref={inputRef}
         value={open ? q : (sel?.label ?? "")}
         placeholder={placeholder}
         onFocus={() => { setOpen(true); setQ(""); }}
@@ -185,21 +209,20 @@ export function Combobox({
         onBlur={() => setTimeout(() => setOpen(false), 130)}
         style={inputStyle}
       />
-      {open && (
+      {open && rect && createPortal(
         <div
           style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            marginTop: 2,
+            position: "fixed",
+            top: rect.bottom + 2,
+            left: rect.left,
+            width: rect.width,
             maxHeight: 200,
             overflowY: "auto",
             background: PANEL,
             border: "1px solid var(--line)",
             borderRadius: 7,
             boxShadow: "0 10px 24px rgba(0,0,0,.26)",
-            zIndex: 80,
+            zIndex: 1000,
           }}
         >
           {filtered.map((o) => (
@@ -214,7 +237,8 @@ export function Combobox({
             </div>
           ))}
           {filtered.length === 0 && <div style={{ padding: "6px 9px", fontSize: ".8rem", color: MUTED }}>No matches</div>}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
