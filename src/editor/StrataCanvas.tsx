@@ -32,6 +32,7 @@ import { CommentNode } from "./nodes/CommentNode";
 import { FloatingEdge } from "./edges/FloatingEdge";
 import { borderPointToward } from "./edges/floating";
 import { accent, ghostCol, mutedCol, upCol, downCol } from "./theme";
+import { ZOOM_MIN, ZOOM_MAX } from "./ui/ZoomControl";
 
 /** Active edge retarget: one endpoint follows the cursor while the other stays
  *  fixed; a click on a node commits the new endpoint (see N-25 in the tracker). */
@@ -605,8 +606,8 @@ export function StrataCanvas(props: StrataCanvasProps) {
       connectionMode={ConnectionMode.Loose}
       connectionRadius={34}
       fitView
-      minZoom={0.2}
-      maxZoom={2}
+      minZoom={ZOOM_MIN}
+      maxZoom={ZOOM_MAX}
       selectionOnDrag
       panOnDrag={[1]}
       panOnScroll={false}

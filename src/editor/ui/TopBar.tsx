@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Button, Shortcut } from "./primitives";
+import { ZoomControl } from "./ZoomControl";
 import { MUTED, PANEL, INK } from "../theme";
 import { t } from "../i18n";
 import { nextLayerOrder, type Prefs, type Mode } from "../api";
@@ -65,11 +66,12 @@ function MenuItem({ label, onClick, shortcut, disabled, title }: { label: string
   );
 }
 
-function Menu({ label, children, open, onToggle }: { label: string; children: ReactNode; open: boolean; onToggle: () => void }) {
+function Menu({ label, children, open, onToggle, onHover }: { label: string; children: ReactNode; open: boolean; onToggle: () => void; onHover: () => void }) {
   return (
     <div style={{ position: "relative" }}>
       <button
         onClick={onToggle}
+        onMouseEnter={onHover}
         style={{
           border: "none",
           background: open ? "rgba(127,127,127,.14)" : "transparent",
@@ -109,6 +111,9 @@ export function TopBar(p: TopBarProps) {
   const [menu, setMenu] = useState<string | null>(null);
   const close = () => setMenu(null);
   const toggle = (m: string) => setMenu((cur) => (cur === m ? null : m));
+  // Menubar pattern (N-37): once any menu is open, hovering another opens it;
+  // click is only needed for the first open (or to re-open after a click outside).
+  const hover = (m: string) => setMenu((cur) => (cur === null ? cur : m));
   const connected = p.mode === "connected";
 
   const check = (on: boolean) => (on ? "☑" : "☐");
@@ -121,7 +126,7 @@ export function TopBar(p: TopBarProps) {
       {/* menu bar */}
       <div style={{ display: "flex", alignItems: "center", gap: 2, padding: "3px 8px" }}>
         <strong style={{ fontSize: ".95rem", margin: "0 8px 0 4px" }}>Strata</strong>
-        <Menu label={t("menu.file")} open={menu === "file"} onToggle={() => toggle("file")}>
+        <Menu label={t("menu.file")} open={menu === "file"} onToggle={() => toggle("file")} onHover={() => hover("file")}>
           <MenuItem label={t("menu.file.add")} shortcut="N" onClick={() => { close(); p.onAddNode(); }} />
           <MenuItem label={t("menu.file.new")} disabled={connected} title={connected ? t("tip.newConnected") : undefined} onClick={() => { close(); p.onNewFromBuiltIn(); }} />
           <MenuItem label={t("menu.file.demo")} disabled={connected} title={connected ? t("tip.newConnected") : undefined} onClick={() => { close(); p.onLoadDemo(); }} />
@@ -129,12 +134,12 @@ export function TopBar(p: TopBarProps) {
           <MenuItem label={t("menu.file.export")} onClick={() => { close(); p.onExportSgm(); }} />
           <MenuItem label={t("menu.file.png")} onClick={() => { close(); p.onExportPng(); }} />
         </Menu>
-        <Menu label={t("menu.edit")} open={menu === "edit"} onToggle={() => toggle("edit")}>
+        <Menu label={t("menu.edit")} open={menu === "edit"} onToggle={() => toggle("edit")} onHover={() => hover("edit")}>
           <MenuItem label={t("menu.edit.undo")} shortcut="Ctrl+Z" disabled={!p.canUndo} onClick={() => { close(); p.onUndo(); }} />
           <MenuItem label={t("menu.edit.redo")} shortcut="Ctrl+Y" disabled={!p.canRedo} onClick={() => { close(); p.onRedo(); }} />
           <MenuItem label={t("menu.edit.prefs")} onClick={() => { close(); p.onOpenPrefs(); }} />
         </Menu>
-        <Menu label={t("menu.view")} open={menu === "view"} onToggle={() => toggle("view")}>
+        <Menu label={t("menu.view")} open={menu === "view"} onToggle={() => toggle("view")} onHover={() => hover("view")}>
           <MenuItem label={t("menu.view.fit")} onClick={() => { close(); p.onFit(); }} />
           <MenuItem label={t("menu.view.reset")} onClick={() => { close(); p.onResetLayout(); }} />
           <MenuItem
@@ -204,6 +209,14 @@ export function TopBar(p: TopBarProps) {
         <Button onClick={p.onExportPng} title={t("tip.png")}>⇩ PNG</Button>
         <Button onClick={p.onFit} title={t("tip.fit")}>⤢ {t("quickbar.fit")}</Button>
         <Button onClick={p.onResetLayout} title={t("tip.reset")}>⟳ {t("quickbar.reset")}</Button>
+        <Button
+          onClick={() => p.onPrefsChange({ layout: p.prefs.layout === "vertical" ? "horizontal" : "vertical" })}
+          title={t("tip.layout", { value: t(p.prefs.layout === "vertical" ? "layout.vertical" : "layout.horizontal") })}
+        >
+          ⇄ {t("quickbar.layout")}
+        </Button>
+        <span style={{ width: 1, height: 20, background: "var(--line)", margin: "0 3px" }} />
+        <ZoomControl />
         {p.alertCount > 0 && (
           <Button onClick={p.onOpenRebuild} active title={t("tip.rebuild")} style={{ borderColor: "var(--ghost)", color: "var(--ghost)" }}>
             ⛓️‍💥 {t("quickbar.rebuild")}
