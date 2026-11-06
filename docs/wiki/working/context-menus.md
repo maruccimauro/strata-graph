@@ -26,7 +26,7 @@ Right-click a node:
 - When the node is under a broken-link alert, **Rebuild relations** and **Unlink from alert** appear. See [Deleting nodes](/working/deleting-nodes).
 - **Delete** the node (manual or automatic). See [Deleting nodes](/working/deleting-nodes).
 
-A section's central node shows only **Open details** and **Lock / Unlock**, since it cannot be connected, commented or deleted by hand.
+A section's central node shows only **Band options…**, which opens the band panel (the same as clicking the central). The central is the band's representative, not an ordinary node, so it has no connect, comment or delete actions.
 
 Over the canvas background, the menu adds **Rebuild relations** and **Hide alert banners** while any broken-link alert is active.
 

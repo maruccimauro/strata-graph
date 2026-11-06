@@ -13,6 +13,8 @@ A single click **selects** a node; it does not open the overlay. Open the overla
 - **Double-click** the node. The overlay is **sticky**: it stays open until you dismiss it.
 - Hold <kbd>Alt</kbd> and **hover** the node (no click). This opens a **transient** overlay that closes the moment you leave the node or release <kbd>Alt</kbd>.
 
+This applies to documents and comments. A section's **central node** is the band's representative, not an ordinary node: a single click on it opens the **band panel** instead of a node overlay. See [Sections](/modeling/sections).
+
 From top to bottom:
 
 - An **action bar** of icon buttons, below the title: **🔒 lock/unlock**, **🔗 connect**, **⛓ manage connections** (lists every edge on the node with a per-row remove; see [Edges](/modeling/edges)), **🏷️ comment**, and **🗑 delete** (manual or automatic; see [Deleting nodes](/working/deleting-nodes)). When the node is under a broken-link alert, a ✔ action to unlink it from the alert also appears. Each button has a tooltip.

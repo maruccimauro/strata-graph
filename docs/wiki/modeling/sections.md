@@ -10,22 +10,26 @@ Sections are the horizontal bands that group your nodes. Every node belongs to o
 
 A **section** has an id, a label, a color (an HSL hue the editor turns into band and accent colors), and an order. Sections stack top to bottom as colored **bands** across the canvas.
 
-Each section has a **central node**: a solid, labeled node that sits in the band and summarizes it.
+Each section has a **central node**: a solid, labeled node that sits in the band and represents it.
 
-## The central node counts
+## The central node is the band's representative
 
-The central node shows two counts:
+The central node is **pinned**: it sits just under the band label, indented from the start, in both the horizontal and vertical layouts, and it never moves. It is not dragged and the rubber band never selects it.
+
+Instead, the central is the entry point to the band's options. **Click** it, or right-click it and choose **Band options…**, to open the **band panel**, where the band is managed. The panel currently holds the band's own **lock** and **due date**; more band management arrives in later releases.
+
+The central shows two counts:
 
 - **AUTO generated/total**: of the nodes produced by the built-in model or scan, how many exist. Unavailable nodes are excluded from this count.
 - **MANUAL +n**: how many nodes you added yourself.
 
-The central node moves only across its band and stays anchored on the other axis: in a horizontal layout it slides up and down, in a vertical layout it slides left and right. Its travel is clamped to the band, so it never leaves its own section.
+It also shows the same status indicators as documents: a **due-date** dot and a **lock** glyph when either is set on the band.
 
 ## Bands grow to their content
 
 A band is sized to the box that its nodes occupy. Drag a node past a band edge and the band grows to keep it inside, live, while you drag; drag the node back and the band shrinks again, reclaiming the empty space on either side.
 
-Growth pushes only the side it needs. Along the stacking direction (top to bottom in a horizontal layout, left to right in a vertical one), a band that grows toward the end pushes the bands after it, and a band that grows toward the start pushes the bands before it, so nothing overlaps. Along the shared direction (the band width in a horizontal layout, the band height in a vertical one) every band shares one range, so a node dragged far out makes all the bands grow together, in either direction. The central node stays at the start of that shared range, so it follows when a band extends.
+Growth pushes only the side it needs. Along the stacking direction (top to bottom in a horizontal layout, left to right in a vertical one), a band that grows toward the end pushes the bands after it, and a band that grows toward the start pushes the bands before it, so nothing overlaps. Along the shared direction (the band width in a horizontal layout, the band height in a vertical one) every band shares one range, so a node dragged far out makes all the bands grow together, in either direction. The central node stays pinned under the band label through all of this.
 
 Each orientation remembers its own arrangement, so growing a band in the horizontal layout does not affect the vertical one.
 

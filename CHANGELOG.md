@@ -23,8 +23,18 @@ history; the project carried no tagged releases before this file was introduced.
   the task backlog.
 - Development rule `verify-before-documenting`: statements about the current
   state of the system must be verifiable in code, tests or configuration.
+- Band panel opened from a section's central node, the band's representative: a
+  click on the central, or its "Band options…" context-menu entry, opens the
+  panel. It carries the band's own lock and due date, with further band
+  management to follow.
+- Status indicators on the section central node (lock glyph and due-date dot),
+  the same ones documents already show.
 
 ### Changed
+
+- Section central nodes are now pinned under their band label in both layouts and
+  no longer move: they are not draggable and the rubber band does not select them.
+  A central is the band's representative rather than a positionable node.
 
 - `BACKLOG.md` restructured to track only pending work, with one canonical entry
   per requirement and explicit status and priority. Completed items are no longer
