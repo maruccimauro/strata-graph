@@ -13,12 +13,18 @@ export interface BandPanelProps {
   /** whether the band's hue / label are overridden over the built-in model. */
   customHue: boolean;
   customLabel: boolean;
+  /** effective auto-grow for this band, and whether it overrides the global toggle. */
+  grow: boolean;
+  growOverridden: boolean;
   onClose: () => void;
   onSetNodeMeta: (id: string, meta: { createdAt?: number; dueAt?: number; locked?: boolean }) => void;
   onSetSectionHue: (id: string, hue: number) => void;
   onResetSectionHue: (id: string) => void;
   onSetSectionLabel: (id: string, label: string) => void;
   onResetSectionLabel: (id: string) => void;
+  onSetBandGrow: (id: string, on: boolean) => void;
+  onResetBandGrow: (id: string) => void;
+  onResetBandLayout: (id: string) => void;
 }
 
 /** The band's management panel, opened from the central (the band's
@@ -30,12 +36,17 @@ export function BandPanel({
   at,
   customHue,
   customLabel,
+  grow,
+  growOverridden,
   onClose,
   onSetNodeMeta,
   onSetSectionHue,
   onResetSectionHue,
   onSetSectionLabel,
   onResetSectionLabel,
+  onSetBandGrow,
+  onResetBandGrow,
+  onResetBandLayout,
 }: BandPanelProps) {
   const x = Math.min(at.x + 12, window.innerWidth - 330);
   const y = Math.min(at.y + 12, window.innerHeight - 320);
@@ -119,6 +130,17 @@ export function BandPanel({
           <Countdown dueAt={central.dueAt} />
         </div>
       )}
+
+      {/* per-band grow + re-arrange */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "9px 0 4px", paddingTop: 8, borderTop: "1px solid var(--line)" }}>
+        <Button active={grow} title={t("band.grow.tip")} onClick={() => onSetBandGrow(section.id, !grow)}>
+          {t("band.grow")}
+        </Button>
+        {growOverridden && <ResetLink onClick={() => onResetBandGrow(section.id)} />}
+        <Button title={t("band.rearrange.tip")} onClick={() => onResetBandLayout(section.id)} style={{ marginLeft: "auto" }}>
+          {t("band.rearrange")}
+        </Button>
+      </div>
 
       <div style={{ fontSize: ".74rem", color: MUTED, marginTop: 10, lineHeight: 1.4 }}>{t("band.panel.empty")}</div>
     </Panel>

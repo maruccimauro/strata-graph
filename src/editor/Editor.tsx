@@ -709,6 +709,36 @@ export function Editor({
       }),
     [patch],
   );
+  const setBandGrow = useCallback(
+    (id: string, on: boolean) => patch((s) => ({ ...s, bandGrow: { ...(s.bandGrow ?? {}), [id]: on } })),
+    [patch],
+  );
+  const resetBandGrow = useCallback(
+    (id: string) =>
+      patch((s) => {
+        const next = { ...(s.bandGrow ?? {}) };
+        delete next[id];
+        return { ...s, bandGrow: next };
+      }),
+    [patch],
+  );
+  // Re-arrange a single band: drop its documents' saved positions and its captured
+  // box for the active orientation, so it re-packs to the content grid (and, if it
+  // is grow-off, re-freezes at that tidied size on the next capture).
+  const resetBandLayout = useCallback(
+    (id: string) => {
+      const docIds = new Set(model.nodes.filter((n) => n.kind === "doc" && n.sectionId === id).map((n) => n.id));
+      patch((s) => {
+        const layout = s.prefs?.layout ?? "horizontal";
+        const posL = { ...(s.pos?.[layout] ?? {}) };
+        for (const did of docIds) delete posL[did];
+        const boxes = { ...(s.bandBoxes?.[layout] ?? {}) };
+        delete boxes[id];
+        return { ...s, pos: { ...(s.pos ?? {}), [layout]: posL }, bandBoxes: { ...(s.bandBoxes ?? {}), [layout]: boxes } };
+      });
+    },
+    [patch, model],
+  );
 
   // Re-fit the viewport when the band orientation changes so the relaid-out
   // graph is framed, not left off-screen.
@@ -1006,6 +1036,7 @@ export function Editor({
           prefs={prefs}
           themeKey={themeKey}
           frozenBands={state.bandBoxes?.[prefs.layout ?? "horizontal"]}
+          bandGrow={state.bandGrow}
           onPersistBands={onPersistBands}
           onPersistPositions={onPersistPositions}
           onConnectNodes={(source, target) => setPending({ a: source, b: target })}
@@ -1088,12 +1119,17 @@ export function Editor({
           at={{ x: bandPanel.x, y: bandPanel.y }}
           customHue={(state.sectionHues ?? {})[bandPanel.section.id] !== undefined}
           customLabel={(state.sectionLabels ?? {})[bandPanel.section.id] !== undefined}
+          grow={(state.bandGrow ?? {})[bandPanel.section.id] ?? prefs.autoGrowBands}
+          growOverridden={(state.bandGrow ?? {})[bandPanel.section.id] !== undefined}
           onClose={() => setBandPanel(null)}
           onSetNodeMeta={onSetNodeMeta}
           onSetSectionHue={setSectionHue}
           onResetSectionHue={resetSectionHue}
           onSetSectionLabel={setSectionLabel}
           onResetSectionLabel={resetSectionLabel}
+          onSetBandGrow={setBandGrow}
+          onResetBandGrow={resetBandGrow}
+          onResetBandLayout={resetBandLayout}
         />
       )}
 

@@ -57,6 +57,9 @@ export interface StrataCanvasProps {
   prefs: Prefs;
   themeKey: number;
   frozenBands?: BandBoxMap;
+  /** per-section grow override (per-band override of prefs.autoGrowBands). A band
+   *  absent from the map follows the global toggle. */
+  bandGrow?: Record<string, boolean>;
   onPersistBands: (boxes: BandBoxMap) => void;
   onPersistPositions: (pos: Record<string, { x: number; y: number }>) => void;
   onConnectNodes: (source: string, target: string) => void;
@@ -91,7 +94,7 @@ export interface StrataCanvasProps {
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, frozenBands, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateBand, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, alerts, ghostBridges, onAlertBadge, locate, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
+  const { model, prefs, themeKey, frozenBands, bandGrow, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateBand, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, alerts, ghostBridges, onAlertBadge, locate, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
   const rf = useReactFlow();
   // Cursor position in flow coordinates while a retarget is in progress, so the
   // rubber-band line can follow it from the fixed endpoint.
@@ -105,23 +108,28 @@ export function StrataCanvas(props: StrataCanvasProps) {
   const hoverE = prefs.hoverHighlight ? hoverEdge : null;
 
   const nodeIndex = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model]);
-  // Layout + adjacency, independent of selection and hover.
-  // With auto-grow off, freeze the layout to the band boxes captured while it was
-  // on (nodes are only confined); with it on, size the bands to their content.
-  const frozen = !prefs.autoGrowBands ? frozenBands : undefined;
-  const info = useMemo(() => graphInfo(model, prefs.layout ?? "horizontal", frozen), [model, prefs.layout, frozen]);
-  // Capture the current band boxes while auto-grow is on, so turning it off later
-  // can lock the layout exactly where it is.
+  // Layout + adjacency, independent of selection and hover. Each band grows to its
+  // content or is frozen to its captured box per its effective grow (the per-band
+  // override of the global toggle); a frozen band's nodes are only confined.
+  const growOf = (id: string) => bandGrow?.[id] ?? prefs.autoGrowBands;
+  const growKey = JSON.stringify(bandGrow ?? {});
+  const info = useMemo(
+    () => graphInfo(model, prefs.layout ?? "horizontal", frozenBands, (id) => bandGrow?.[id] ?? prefs.autoGrowBands),
+    // growKey captures bandGrow for the memo; the closure reads the latest bandGrow.
+    [model, prefs.layout, prefs.autoGrowBands, frozenBands, growKey],
+  );
+  // Capture the current band boxes, so a band turned to grow-off later locks exactly
+  // where it is. Frozen bands re-capture their own box unchanged (the key compare
+  // skips a no-op write), so this stays quiet unless a growing band actually resized.
   const lastBoxes = useRef<string>("");
   useEffect(() => {
-    if (!prefs.autoGrowBands) return;
     const boxes: BandBoxMap = {};
     for (const b of info.bands) boxes[b.section.id] = { x: b.x, y: b.y, width: b.width, height: b.height };
     const key = JSON.stringify(boxes);
     if (key === lastBoxes.current) return;
     lastBoxes.current = key;
     onPersistBands(boxes);
-  }, [info, prefs.autoGrowBands, onPersistBands]);
+  }, [info, onPersistBands]);
   // Nodes depend only on the real selection, never on hover, so hovering a node
   // rebuilds edges only (no node flicker) and highlights edges, not the node.
   const rfNodes = useMemo(
@@ -388,7 +396,9 @@ export function StrataCanvas(props: StrataCanvasProps) {
     const g = nodeIndex.get(node.id);
     const sid = g?.sectionId;
     if (!sid) return; // sectionless docs float freely
-    if (!prefs.autoGrowBands) {
+    // The dragged node's own band decides: a grow-off band confines it; a grow-on
+    // band grows (the other bands keep their own grow, so frozen neighbors hold).
+    if (!growOf(sid)) {
       const band = bandBySection.get(sid);
       if (!band) return;
       const nx = clamp(node.position.x, band.x + GEO.BAND_PAD / 2, band.x + Math.max(0, band.width - GEO.DOC_W - GEO.BAND_PAD / 2));
@@ -399,7 +409,7 @@ export function StrataCanvas(props: StrataCanvasProps) {
     const live = new Map(rf.getNodes().filter((n) => n.type !== "band").map((n) => [n.id, n.position]));
     live.set(node.id, node.position); // the event carries the authoritative drag position
     const liveModel = { ...model, nodes: model.nodes.map((n) => ({ ...n, position: live.get(n.id) ?? n.position })) };
-    const { bands, model: packed } = packLayout(liveModel, orientation, { anchorSection: sid });
+    const { bands, model: packed } = packLayout(liveModel, orientation, { anchorSection: sid, fixedBands: frozenBands, grow: growOf });
     const posById = new Map(packed.nodes.map((n) => [n.id, n.position!]));
     const boxById = new Map(bands.map((b) => [`band:${b.section.id}`, b]));
     setNodes((cur) =>
@@ -624,9 +634,9 @@ function reach(map: Map<string, string[]>, start: string): Set<string> {
 
 /** Layout, section hues, adjacency and section counts — everything derived from
  *  the model (and orientation) alone, independent of selection and hover. */
-function graphInfo(model: GraphModel, orientation: "horizontal" | "vertical", fixedBands?: BandBoxMap) {
+function graphInfo(model: GraphModel, orientation: "horizontal" | "vertical", fixedBands?: BandBoxMap, grow?: (id: string) => boolean) {
   const seeded = applyDefaultLayout(model, orientation);
-  const packed = packLayout(seeded, orientation, { fixedBands });
+  const packed = packLayout(seeded, orientation, { fixedBands, grow });
   const laid = packed.model;
   const bands = packed.bands;
   const sectionHue = new Map(laid.sections.map((s) => [s.id, s.hue]));

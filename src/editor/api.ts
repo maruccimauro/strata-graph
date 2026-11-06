@@ -126,6 +126,9 @@ export interface ViewerState {
   sectionHues?: Record<string, number>;
   /** per-section label overrides over the built-in model's names. */
   sectionLabels?: Record<string, string>;
+  /** per-section auto-grow override over the global `prefs.autoGrowBands`; a section
+   *  absent from the map follows the global toggle. */
+  bandGrow?: Record<string, boolean>;
   /** per-node metadata overrides (due date, lock, creation date) applied over
    *  the base graph, so they work for auto nodes too, not only manual ones. */
   nodeMeta?: Record<string, { createdAt?: number; dueAt?: number; locked?: boolean }>;
