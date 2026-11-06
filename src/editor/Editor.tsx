@@ -1135,6 +1135,7 @@ export function Editor({
             setEdgeOverlay(null);
             setBandPanel({ section, central: node, x, y });
           }}
+          onReorderSection={onReorderSection}
           onActivateEdge={(id, source, target, x, y) => {
             setOverlay(null);
             setEdgeOverlay({ id, source, target, deletable: !id.startsWith("branch:"), x, y });

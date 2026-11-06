@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvt } from "react";
 import {
   ReactFlow,
   Background,
@@ -66,6 +66,8 @@ export interface StrataCanvasProps {
   onActivateNode: (node: GraphNode, x: number, y: number) => void;
   /** open the band panel from its central (the band's representative). */
   onActivateBand: (node: GraphNode, x: number, y: number) => void;
+  /** reorder a band to a new index (dragging its grip on the canvas). */
+  onReorderSection: (id: string, targetIndex: number) => void;
   onActivateEdge: (id: string, source: string, target: string, x: number, y: number) => void;
   onPaneClick: () => void;
   onCloseOverlays: () => void;
@@ -94,7 +96,7 @@ export interface StrataCanvasProps {
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, frozenBands, bandGrow, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateBand, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, alerts, ghostBridges, onAlertBadge, locate, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
+  const { model, prefs, themeKey, frozenBands, bandGrow, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateBand, onReorderSection, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, alerts, ghostBridges, onAlertBadge, locate, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
   const rf = useReactFlow();
   // Cursor position in flow coordinates while a retarget is in progress, so the
   // rubber-band line can follow it from the fixed endpoint.
@@ -130,11 +132,55 @@ export function StrataCanvas(props: StrataCanvasProps) {
     lastBoxes.current = key;
     onPersistBands(boxes);
   }, [info, onPersistBands]);
+  // Band drag-to-reorder: grabbing a band's grip starts a pointer drag that reads
+  // the target slot from the pointer position along the stacking axis (a drop
+  // indicator previews it) and commits the new order once on release. The bands do
+  // not repack live, so the whole reorder is a single undo step.
+  const [bandDrag, setBandDrag] = useState<{ id: string; targetIndex: number } | null>(null);
+  const bandDragId = useRef<string | null>(null);
+  const targetIndexAt = useCallback(
+    (id: string, clientX: number, clientY: number): number => {
+      const p = rf.screenToFlowPosition({ x: clientX, y: clientY });
+      const isV = (prefs.layout ?? "horizontal") === "vertical";
+      const mid = (b: (typeof info.bands)[number]) => (isV ? b.x + b.width / 2 : b.y + b.height / 2);
+      const ps = isV ? p.x : p.y;
+      return info.bands.filter((b) => b.section.id !== id && mid(b) < ps).length;
+    },
+    [rf, info.bands, prefs.layout],
+  );
+  const onBandGrip = useCallback(
+    (sid: string, e: ReactPointerEvt) => {
+      e.preventDefault();
+      e.stopPropagation();
+      bandDragId.current = sid;
+      setBandDrag({ id: sid, targetIndex: targetIndexAt(sid, e.clientX, e.clientY) });
+      const move = (ev: PointerEvent) => {
+        if (!bandDragId.current) return;
+        setBandDrag({ id: bandDragId.current, targetIndex: targetIndexAt(bandDragId.current, ev.clientX, ev.clientY) });
+      };
+      const up = (ev: PointerEvent) => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        const id = bandDragId.current;
+        bandDragId.current = null;
+        setBandDrag(null);
+        if (!id) return;
+        const ti = targetIndexAt(id, ev.clientX, ev.clientY);
+        const ordered = [...info.bands].sort((a, b) => a.section.order - b.section.order);
+        const from = ordered.findIndex((b) => b.section.id === id);
+        if (ti !== from) onReorderSection(id, ti);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    },
+    [targetIndexAt, info.bands, onReorderSection],
+  );
+
   // Nodes depend only on the real selection, never on hover, so hovering a node
   // rebuilds edges only (no node flicker) and highlights edges, not the node.
   const rfNodes = useMemo(
-    () => buildNodes(info, selected, prefs, alerts, onAlertBadge),
-    [info, selected, prefs.dimMissing, prefs.dimOpacity, prefs.layerOrder, alerts, onAlertBadge, themeKey],
+    () => buildNodes(info, selected, prefs, alerts, onAlertBadge, onBandGrip),
+    [info, selected, prefs.dimMissing, prefs.dimOpacity, prefs.layerOrder, alerts, onAlertBadge, onBandGrip, themeKey],
   );
   const rfEdges = useMemo(
     () => buildEdges(info, prefs, selected, hoverN, selectedEdge, hoverE, onAnchorRetarget, retarget?.edgeId ?? null, ghostBridges),
@@ -574,6 +620,32 @@ export function StrataCanvas(props: StrataCanvasProps) {
       <Background gap={24} />
       <Controls />
       <MiniMap pannable zoomable />
+      {bandDrag &&
+        (() => {
+          const ord = [...info.bands].sort((a, b) => a.section.order - b.section.order);
+          const others = ord.filter((b) => b.section.id !== bandDrag.id);
+          if (others.length === 0) return null;
+          const k = Math.min(bandDrag.targetIndex, others.length);
+          const col = accent(210);
+          if (vertical) {
+            const bx = k < others.length ? others[k].x : others[others.length - 1].x + others[others.length - 1].width;
+            const y0 = Math.min(...ord.map((b) => b.y));
+            const y1 = Math.max(...ord.map((b) => b.y + b.height));
+            return (
+              <ViewportPortal>
+                <div style={{ position: "absolute", left: bx - 2, top: y0, width: 4, height: y1 - y0, background: col, borderRadius: 2, pointerEvents: "none", boxShadow: `0 0 6px ${col}` }} />
+              </ViewportPortal>
+            );
+          }
+          const by = k < others.length ? others[k].y : others[others.length - 1].y + others[others.length - 1].height;
+          const x0 = Math.min(...ord.map((b) => b.x));
+          const x1 = Math.max(...ord.map((b) => b.x + b.width));
+          return (
+            <ViewportPortal>
+              <div style={{ position: "absolute", left: x0, top: by - 2, width: x1 - x0, height: 4, background: col, borderRadius: 2, pointerEvents: "none", boxShadow: `0 0 6px ${col}` }} />
+            </ViewportPortal>
+          );
+        })()}
       {locate &&
         (() => {
           const n = rf.getNode(locate);
@@ -705,7 +777,7 @@ const LAYER_ACTIVE = 20;
  *  nodes and marks its own chain. Hover never affects nodes. A relational-integrity
  *  alert (N-44) is an independent channel: it marks the node, overrides any dim so
  *  the pulse stays visible, and raises its layer. */
-function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs, alerts: Map<string, AlertSeverity>, onAlertBadge: (nodeId: string) => void): Node[] {
+function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs, alerts: Map<string, AlertSeverity>, onAlertBadge: (nodeId: string) => void, onBandGrip: (sid: string, e: ReactPointerEvt) => void): Node[] {
   const { laid, sectionHue, bands, up, down, auto, manual } = info;
   const anc = selected ? reach(up, selected) : new Set<string>();
   const desc = selected ? reach(down, selected) : new Set<string>();
@@ -725,7 +797,7 @@ function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs, aler
       id: `band:${b.section.id}`,
       type: "band",
       position: { x: b.x, y: b.y },
-      data: { label: b.section.label, hue: b.section.hue },
+      data: { label: b.section.label, hue: b.section.hue, onGrip: (e: ReactPointerEvt) => onBandGrip(b.section.id, e) },
       draggable: false,
       selectable: false,
       connectable: false,
