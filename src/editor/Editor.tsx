@@ -667,6 +667,29 @@ export function Editor({
     [commit],
   );
 
+  /** Bulk-remove dependency edges touching a node (N-41): every edge it depends
+   *  on ("up"), every edge that depends on it ("down"), or both, in a single
+   *  undoable step. Comment edges and the synthetic branch edge are left alone. */
+  const onRemoveEdgesByType = useCallback(
+    (nodeId: string, dir: "up" | "down" | "both") => {
+      const match = (e: GraphEdge) =>
+        e.kind === "dependency" &&
+        ((dir !== "down" && e.target === nodeId) || (dir !== "up" && e.source === nodeId));
+      const ids = new Set(model.edges.filter(match).map((e) => e.id));
+      if (ids.size === 0) return;
+      commit((s) => {
+        const prevManual = s.manualEdges ?? [];
+        const manualIds = new Set(prevManual.map((e) => e.id));
+        const removed = [...(s.removedEdges ?? [])];
+        for (const id of ids) if (!manualIds.has(id) && !removed.includes(id)) removed.push(id);
+        return { ...s, manualEdges: prevManual.filter((e) => !ids.has(e.id)), removedEdges: removed };
+      });
+      setEdgeOverlay((cur) => (cur && ids.has(cur.id) ? null : cur));
+      setSelectedEdge((cur) => (cur && ids.has(cur) ? null : cur));
+    },
+    [commit, model],
+  );
+
   /** Reconnect one end of an edge to a different node (drag a reconnect anchor).
    *  A manual edge is replaced in place; an auto edge is removed and a manual
    *  replacement with the new endpoints is created. Branch edges are not
@@ -1112,6 +1135,16 @@ export function Editor({
       { label: t("ctx.manageEdges"), onClick: () => { setOverlay(null); setEdgesPanel({ node, x, y }); } },
       { label: t("ctx.addComment"), onClick: () => onAddComment(node.id) },
     ];
+    // bulk edge removal by direction (N-41); only the directions with edges show.
+    const deps = model.edges.filter((e) => e.kind === "dependency");
+    const up = deps.filter((e) => e.target === node.id).length;
+    const down = deps.filter((e) => e.source === node.id).length;
+    if (up > 0 || down > 0) {
+      items.push({ label: "", onClick: () => {}, separator: true });
+      if (up > 0) items.push({ label: t("ctx.removeUp", { count: up }), onClick: () => onRemoveEdgesByType(node.id, "up") });
+      if (down > 0) items.push({ label: t("ctx.removeDown", { count: down }), onClick: () => onRemoveEdgesByType(node.id, "down") });
+      if (up > 0 && down > 0) items.push({ label: t("ctx.removeAllDeps", { count: up + down }), onClick: () => onRemoveEdgesByType(node.id, "both") });
+    }
     if (alertMap.has(node.id)) {
       items.push(
         { label: "", onClick: () => {}, separator: true },
@@ -1306,6 +1339,7 @@ export function Editor({
           at={{ x: edgesPanel.x, y: edgesPanel.y }}
           infoOf={infoOf}
           onDelete={onDeleteEdge}
+          onRemoveByType={(dir) => onRemoveEdgesByType(edgesPanel.node.id, dir)}
           onClose={() => setEdgesPanel(null)}
         />
       )}

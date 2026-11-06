@@ -9,6 +9,8 @@ export interface NodeEdgesPanelProps {
   at: { x: number; y: number };
   infoOf: (id: string) => { label: string; section?: string };
   onDelete: (id: string) => void;
+  /** bulk-remove every dependency edge of a direction touching the node (N-41). */
+  onRemoveByType: (dir: "up" | "down" | "both") => void;
   onClose: () => void;
 }
 
@@ -23,7 +25,7 @@ interface Row {
  *  touches the node, with its direction and the other end, and a per-row remove.
  *  Branch edges are a rendering artifact (not in the model), so they never show
  *  here and every listed row is removable. */
-export function NodeEdgesPanel({ node, edges, at, infoOf, onDelete, onClose }: NodeEdgesPanelProps) {
+export function NodeEdgesPanel({ node, edges, at, infoOf, onDelete, onRemoveByType, onClose }: NodeEdgesPanelProps) {
   const rows: Row[] = edges
     .filter((e) => e.source === node.id || e.target === node.id)
     .map((e) => {
@@ -36,9 +38,22 @@ export function NodeEdgesPanel({ node, edges, at, infoOf, onDelete, onClose }: N
       return { id: e.id, relation: t("edgesPanel.requiredBy"), otherId: e.target, tone: "down" as const };
     });
 
+  const upCount = rows.filter((r) => r.tone === "up").length;
+  const downCount = rows.filter((r) => r.tone === "down").length;
+
   const x = Math.min(at.x + 12, window.innerWidth - 320);
   const y = Math.min(at.y + 12, window.innerHeight - 320);
   const toneColor = (tone: Row["tone"]) => (tone === "up" ? "var(--up)" : tone === "down" ? "var(--down)" : "#caa83a");
+
+  const bulkBtn: React.CSSProperties = {
+    border: "1px solid var(--line)",
+    background: "transparent",
+    color: "var(--ghost)",
+    cursor: "pointer",
+    fontSize: ".72rem",
+    borderRadius: 6,
+    padding: "3px 8px",
+  };
 
   return (
     <Panel title={t("edgesPanel.title", { name: node.label })} onClose={onClose} style={{ left: x, top: y, minWidth: 260, maxWidth: 320 }}>
@@ -46,6 +61,25 @@ export function NodeEdgesPanel({ node, edges, at, infoOf, onDelete, onClose }: N
         <div style={{ fontSize: ".8rem", color: MUTED, padding: "4px 0" }}>{t("edgesPanel.empty")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: "min(50vh, 360px)", overflowY: "auto" }}>
+          {(upCount > 0 || downCount > 0) && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, paddingBottom: 2 }}>
+              {upCount > 0 && (
+                <button style={bulkBtn} title={t("edgesPanel.removeUp.tip")} onClick={() => onRemoveByType("up")}>
+                  {t("edgesPanel.removeUp", { count: upCount })}
+                </button>
+              )}
+              {downCount > 0 && (
+                <button style={bulkBtn} title={t("edgesPanel.removeDown.tip")} onClick={() => onRemoveByType("down")}>
+                  {t("edgesPanel.removeDown", { count: downCount })}
+                </button>
+              )}
+              {upCount > 0 && downCount > 0 && (
+                <button style={bulkBtn} title={t("edgesPanel.removeAll.tip")} onClick={() => onRemoveByType("both")}>
+                  {t("edgesPanel.removeAll", { count: upCount + downCount })}
+                </button>
+              )}
+            </div>
+          )}
           {rows.map((r) => {
             const info = infoOf(r.otherId);
             return (
