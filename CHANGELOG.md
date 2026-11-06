@@ -29,12 +29,16 @@ history; the project carried no tagged releases before this file was introduced.
   management to follow.
 - Status indicators on the section central node (lock glyph and due-date dot),
   the same ones documents already show.
+- Band name and color controls in the band panel: rename a band and set its hue
+  from the central, each with a reset to the built-in value.
 
 ### Changed
 
 - Section central nodes are now pinned under their band label in both layouts and
   no longer move: they are not draggable and the rubber band does not select them.
   A central is the band's representative rather than a positionable node.
+- Section color moved out of Preferences into the band panel, alongside the new
+  rename control; the Preferences "Sections" category was removed.
 
 - `BACKLOG.md` restructured to track only pending work, with one canonical entry
   per requirement and explicit status and priority. Completed items are no longer

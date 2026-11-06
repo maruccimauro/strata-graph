@@ -25,6 +25,15 @@ The central shows two counts:
 
 It also shows the same status indicators as documents: a **due-date** dot and a **lock** glyph when either is set on the band.
 
+## Color and name
+
+Open the band panel from the central and set the band's **name** and **color** there:
+
+- **Name** renames the band. The band label and the central update live.
+- **Color** is a hue slider; the band, its nodes, and the edges that point into it recolor live as you drag.
+
+Both are display overrides over the built-in model. When either is customized, a **Reset** control restores the built-in value. They never change the underlying **Strata Graph Model**, so exporting to `.sgm` keeps the model's own name and colors.
+
 ## Bands grow to their content
 
 A band is sized to the box that its nodes occupy. Drag a node past a band edge and the band grows to keep it inside, live, while you drag; drag the node back and the band shrinks again, reclaiming the empty space on either side.
