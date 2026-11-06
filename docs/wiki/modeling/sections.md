@@ -50,7 +50,14 @@ The band panel has its own **⇲ Grow** toggle that overrides the global setting
 
 **Re-arrange** (also in the band panel) tidies that band's nodes back to the grid and sizes the band to its content, without touching the other bands.
 
-## Managing a band's nodes
+## Reordering bands
+
+The band panel lists every band, in order, under **Band order**, with the current one highlighted. Reorder them in two ways:
+
+- The **↑** and **↓** buttons move a band one step at a time.
+- The **grip** (**⠿**) drags a band to a new position; the list previews the new order as you drag and commits it when you drop.
+
+A right-click on a central also offers **Move band up** and **Move band down**. Every reorder is a single undo step, and the canvas re-packs the bands into the new order immediately. The order is a display override; it does not change the underlying **Strata Graph Model**.
 
 The band panel lists every node in the band under **Nodes**. Not-generated nodes appear faded, and an unavailable one is struck through, the same as on the canvas. Each row has:
 

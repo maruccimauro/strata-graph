@@ -42,6 +42,10 @@ history; the project carried no tagged releases before this file was introduced.
 - Bulk actions in the band panel: lock or unlock every node in the band, move all
   of them to another band, and delete all existing nodes at once with one
   confirmation and a single, undoable rebuild alert.
+- Band reordering: a "Band order" list in the band panel reorders bands with
+  per-row up and down buttons or by dragging a grip, and a central's context menu
+  offers Move band up and Move band down. Each reorder is a single undo step and
+  the canvas re-packs immediately.
 
 ### Changed
 
