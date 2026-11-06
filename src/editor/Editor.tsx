@@ -696,6 +696,19 @@ export function Editor({
       }),
     [patch],
   );
+  const setSectionLabel = useCallback(
+    (id: string, label: string) => patch((s) => ({ ...s, sectionLabels: { ...(s.sectionLabels ?? {}), [id]: label } })),
+    [patch],
+  );
+  const resetSectionLabel = useCallback(
+    (id: string) =>
+      patch((s) => {
+        const next = { ...(s.sectionLabels ?? {}) };
+        delete next[id];
+        return { ...s, sectionLabels: next };
+      }),
+    [patch],
+  );
 
   // Re-fit the viewport when the band orientation changes so the relaid-out
   // graph is framed, not left off-screen.
@@ -1073,8 +1086,14 @@ export function Editor({
           section={model.sections.find((s) => s.id === bandPanel.section.id) ?? bandPanel.section}
           central={model.nodes.find((n) => n.id === bandPanel.central.id) ?? bandPanel.central}
           at={{ x: bandPanel.x, y: bandPanel.y }}
+          customHue={(state.sectionHues ?? {})[bandPanel.section.id] !== undefined}
+          customLabel={(state.sectionLabels ?? {})[bandPanel.section.id] !== undefined}
           onClose={() => setBandPanel(null)}
           onSetNodeMeta={onSetNodeMeta}
+          onSetSectionHue={setSectionHue}
+          onResetSectionHue={resetSectionHue}
+          onSetSectionLabel={setSectionLabel}
+          onResetSectionLabel={resetSectionLabel}
         />
       )}
 
@@ -1207,10 +1226,6 @@ export function Editor({
         <PreferencesPanel
           prefs={prefs}
           onChange={setPrefs}
-          sections={model.sections}
-          customHues={state.sectionHues ?? {}}
-          onSectionHue={setSectionHue}
-          onResetSectionHue={resetSectionHue}
           onClose={() => setPrefsOpen(false)}
         />
       )}

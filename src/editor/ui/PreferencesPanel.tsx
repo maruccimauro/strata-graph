@@ -1,18 +1,16 @@
 import { useState, type ReactNode } from "react";
-import { MUTED, accent } from "../theme";
+import { MUTED } from "../theme";
 import { Field } from "./primitives";
 import { t, LANGUAGES } from "../i18n";
 import type { Prefs } from "../api";
-import type { Section } from "../../core/types";
 
 /** Preference categories. Only categories with real settings are listed: no
  *  empty placeholder tabs. Add a new entry here as a category gains content. */
-type Category = "general" | "interface" | "sections";
+type Category = "general" | "interface";
 
 const CATEGORIES: { id: Category; icon: string }[] = [
   { id: "general", icon: "⚙" },
   { id: "interface", icon: "◧" },
-  { id: "sections", icon: "▤" },
 ];
 
 /** Preferences as a two-pane panel: category list on the left, settings on the
@@ -20,18 +18,10 @@ const CATEGORIES: { id: Category; icon: string }[] = [
 export function PreferencesPanel({
   prefs,
   onChange,
-  sections,
-  customHues,
-  onSectionHue,
-  onResetSectionHue,
   onClose,
 }: {
   prefs: Prefs;
   onChange: (p: Partial<Prefs>) => void;
-  sections: Section[];
-  customHues: Record<string, number>;
-  onSectionHue: (id: string, hue: number) => void;
-  onResetSectionHue: (id: string) => void;
   onClose: () => void;
 }) {
   const [cat, setCat] = useState<Category>("general");
@@ -121,14 +111,6 @@ export function PreferencesPanel({
         <div style={{ flex: 1, padding: "12px 16px", minWidth: 0, maxHeight: "min(70vh, 520px)", overflowY: "auto" }}>
           {cat === "general" && <GeneralPane prefs={prefs} onChange={onChange} />}
           {cat === "interface" && <InterfacePane prefs={prefs} onChange={onChange} />}
-          {cat === "sections" && (
-            <SectionsPane
-              sections={sections}
-              customHues={customHues}
-              onSectionHue={onSectionHue}
-              onResetSectionHue={onResetSectionHue}
-            />
-          )}
         </div>
       </div>
     </div>
@@ -282,56 +264,3 @@ function InterfacePane({ prefs, onChange }: { prefs: Prefs; onChange: (p: Partia
   );
 }
 
-function SectionsPane({
-  sections,
-  customHues,
-  onSectionHue,
-  onResetSectionHue,
-}: {
-  sections: Section[];
-  customHues: Record<string, number>;
-  onSectionHue: (id: string, hue: number) => void;
-  onResetSectionHue: (id: string) => void;
-}) {
-  const ordered = [...sections].sort((a, b) => a.order - b.order);
-  return (
-    <Group title={t("prefs.sections.title")}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {ordered.map((s) => {
-          const custom = customHues[s.id] !== undefined;
-          return (
-            <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span
-                  aria-hidden
-                  style={{ width: 14, height: 14, borderRadius: 4, background: accent(s.hue), border: "1px solid var(--line)", flexShrink: 0 }}
-                />
-                <span style={{ fontSize: ".82rem", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {s.label}
-                </span>
-                {custom && (
-                  <button
-                    onClick={() => onResetSectionHue(s.id)}
-                    title={t("prefs.sections.resetTip")}
-                    style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: ".72rem" }}
-                  >
-                    {t("prefs.sections.reset")}
-                  </button>
-                )}
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={360}
-                value={s.hue}
-                aria-label={t("prefs.sections.hue", { label: s.label })}
-                onChange={(e) => onSectionHue(s.id, Number(e.target.value))}
-                style={{ width: "100%", accentColor: accent(s.hue) }}
-              />
-            </div>
-          );
-        })}
-      </div>
-    </Group>
-  );
-}

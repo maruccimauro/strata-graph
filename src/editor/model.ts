@@ -10,6 +10,7 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
   const pos = state.pos?.[layout] ?? {};
   const overrides = state.sectionOverrides ?? {};
   const hues = state.sectionHues ?? {};
+  const labels = state.sectionLabels ?? {};
   const meta = state.nodeMeta ?? {};
   const seen = new Set(state.seenGenerated ?? []);
 
@@ -33,8 +34,11 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
         n.kind === "doc" && n.origin === "auto" && n.status === "missing" && seen.has(n.id)
           ? "unavailable"
           : n.status;
+      // the central (section-kind) node mirrors its section's label override.
+      const label = n.kind === "section" && n.sectionId && labels[n.sectionId] !== undefined ? labels[n.sectionId] : n.label;
       return withMeta({
         ...n,
+        label,
         status,
         sectionId: overrides[n.id] ?? n.sectionId,
         position: pos[n.id] ?? n.position,
@@ -51,7 +55,12 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
     .concat(state.manualEdges ?? [])
     .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
 
-  const sections = graph.sections.map((s) => (hues[s.id] !== undefined ? { ...s, hue: hues[s.id] } : s));
+  const sections = graph.sections.map((s) => {
+    const hue = hues[s.id];
+    const label = labels[s.id];
+    if (hue === undefined && label === undefined) return s;
+    return { ...s, hue: hue ?? s.hue, label: label ?? s.label };
+  });
 
   return { ...graph, sections, nodes, edges };
 }
