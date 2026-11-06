@@ -17,6 +17,19 @@ history; the project carried no tagged releases before this file was introduced.
 
 ## [Unreleased]
 
+### Added
+
+- `ROADMAP.md` stating the product direction and milestones, kept separate from
+  the task backlog.
+- Development rule `verify-before-documenting`: statements about the current
+  state of the system must be verifiable in code, tests or configuration.
+
+### Changed
+
+- `BACKLOG.md` restructured to track only pending work, with one canonical entry
+  per requirement and explicit status and priority. Completed items are no longer
+  duplicated here; they live in this changelog and the Git history.
+
 ## [0.9.0] - 2026-11-06
 
 ### Changed

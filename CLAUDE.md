@@ -86,9 +86,16 @@ summary.
   behavior would make **another** behave differently, ask first in the chat among
   options (extend / modify / duplicate / leave) with the recommended one, instead
   of deciding alone. Detail: @.claude/rules/cross-impact.md
+- **Verify before documenting (HARD)**: every statement about the current state
+  of the system must be verifiable in code, tests or configuration; the changelog
+  records implemented changes, the backlog records planned ones. Detail:
+  @.claude/rules/verify-before-documenting.md
 
 ## Tracking
-- `BACKLOG.md`: backlog of improvements.
+- `BACKLOG.md`: **pending** work only (planned / in-progress / blocked / deferred),
+  one canonical entry per requirement. Completed work lives in the changelog and
+  Git history, not here.
+- `ROADMAP.md`: product direction and milestones (no task list, no dates).
 - `CHANGELOG.md`: version history (Keep a Changelog). Updated in the same batch as
   the feature; see Conventions ▸ Versioning. A batch without its changelog entry
   is not finished.
