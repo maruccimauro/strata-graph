@@ -1,6 +1,6 @@
 {
   "name": "strata-graph",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Visual editor for building, organizing and tracking dependency graphs, grouped into configurable sections and adaptable to any domain.",
   "type": "module",
