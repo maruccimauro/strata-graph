@@ -61,6 +61,8 @@ export interface StrataCanvasProps {
   onPersistPositions: (pos: Record<string, { x: number; y: number }>) => void;
   onConnectNodes: (source: string, target: string) => void;
   onActivateNode: (node: GraphNode, x: number, y: number) => void;
+  /** open the band panel from its central (the band's representative). */
+  onActivateBand: (node: GraphNode, x: number, y: number) => void;
   onActivateEdge: (id: string, source: string, target: string, x: number, y: number) => void;
   onPaneClick: () => void;
   onCloseOverlays: () => void;
@@ -89,7 +91,7 @@ export interface StrataCanvasProps {
 }
 
 export function StrataCanvas(props: StrataCanvasProps) {
-  const { model, prefs, themeKey, frozenBands, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, alerts, ghostBridges, onAlertBadge, locate, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
+  const { model, prefs, themeKey, frozenBands, onPersistBands, onPersistPositions, onConnectNodes, onActivateNode, onActivateBand, onActivateEdge, onPaneClick, onCloseOverlays, onSelectionChange, selected, onSelectNode, selectedEdge, onSelectEdge, alerts, ghostBridges, onAlertBadge, locate, retarget, onRetargetPick, onRetargetCancel, onAnchorRetarget, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu } = props;
   const rf = useReactFlow();
   // Cursor position in flow coordinates while a retarget is in progress, so the
   // rubber-band line can follow it from the fixed endpoint.
@@ -212,7 +214,7 @@ export function StrataCanvas(props: StrataCanvasProps) {
     return () => window.removeEventListener("mousemove", mm);
   }, [retarget, rf]);
 
-  const onNodeClick: NodeMouseHandler = (_e, node) => {
+  const onNodeClick: NodeMouseHandler = (e, node) => {
     // While retargeting an edge, a click picks the new endpoint instead of
     // selecting. Only document nodes are valid targets, and never the fixed end.
     if (retarget) {
@@ -228,7 +230,13 @@ export function StrataCanvas(props: StrataCanvasProps) {
       onSelectEdge(null);
       return;
     }
-    if (node.type === "section") return;
+    // The central is the band's representative: a click opens the band panel (it is
+    // never selected). It is also not selectable, so the rubber band skips it.
+    if (node.type === "section") {
+      const g = nodeIndex.get(node.id);
+      if (g) onActivateBand(g, e.clientX, e.clientY);
+      return;
+    }
     onSelectEdge(null);
     onSelectNode(selected === node.id ? null : node.id);
   };
@@ -239,14 +247,16 @@ export function StrataCanvas(props: StrataCanvasProps) {
     // Becoming sticky: drop transient tracking so a later leave/Alt-up keeps it.
     transientNode.current = null;
     transientEdge.current = null;
-    if (node.type !== "section") {
-      onSelectEdge(null);
-      onSelectNode(node.id);
+    if (node.type === "section") {
+      onActivateBand(g, e.clientX, e.clientY);
+      return;
     }
+    onSelectEdge(null);
+    onSelectNode(node.id);
     onActivateNode(g, e.clientX, e.clientY);
   };
   const openTransientNode: NodeMouseHandler = (e, node) => {
-    if (!altDown.current || node.type === "band") return;
+    if (!altDown.current || node.type === "band" || node.type === "section") return;
     if (transientNode.current === node.id) return;
     const g = nodeIndex.get(node.id);
     if (!g) return;
@@ -356,19 +366,6 @@ export function StrataCanvas(props: StrataCanvasProps) {
     const fixed = changes.map((ch) => {
       if (ch.type === "position" && ch.position && groupIds.has(ch.id)) {
         return { ...ch, position: mk(getS(ch.position) + corrS, getL(ch.position) + corrL) };
-      }
-      if (ch.type === "position" && ch.position && ch.id.startsWith("section:")) {
-        const band = bandBySection.get(ch.id.slice("section:".length));
-        if (band) {
-          // The long-axis coordinate tracks the band's start (so the central
-          // follows when the shared long axis extends); only the cross axis moves.
-          if (vertical) {
-            const maxX = band.x + Math.max(0, band.width - GEO.SECTION_W);
-            return { ...ch, position: { x: clamp(ch.position.x, band.x, maxX), y: band.y + GEO.SECTION_Y } };
-          }
-          const maxY = band.y + Math.max(0, band.height - GEO.SECTION_H);
-          return { ...ch, position: { x: band.x + GEO.SECTION_X, y: clamp(ch.position.y, band.y, maxY) } };
-        }
       }
       return ch;
     });
@@ -751,8 +748,12 @@ function buildNodes(info: GraphInfo, selected: string | null, prefs: Prefs, aler
         id: n.id,
         type: "section",
         position: n.position!,
-        data: { label: n.label, hue, autoCount: a.gen, autoTotal: a.total, manualCount: manual.get(n.sectionId!) ?? 0, locked: n.locked },
-        draggable: !n.locked,
+        data: { label: n.label, hue, autoCount: a.gen, autoTotal: a.total, manualCount: manual.get(n.sectionId!) ?? 0, locked: n.locked, dueAt: n.dueAt },
+        // The central is pinned (packLayout places it): it never drags and the
+        // rubber band never selects it. It is the band's representative: click opens
+        // the band panel.
+        draggable: false,
+        selectable: false,
         zIndex: zBase,
         style: dim,
       });

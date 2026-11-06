@@ -5,6 +5,7 @@ import { toPng } from "html-to-image";
 import { StrataCanvas } from "./StrataCanvas";
 import type { Retarget } from "./StrataCanvas";
 import { NodeOverlay } from "./NodeOverlay";
+import { BandPanel } from "./BandPanel";
 import { NodeEdgesPanel } from "./NodeEdgesPanel";
 import { ConnectPanel, type Direction } from "./ConnectPanel";
 import { NewModelPanel } from "./NewModelPanel";
@@ -21,7 +22,7 @@ import { buildRenderModel } from "./model";
 import { analyzeBreak, buildBreakEvent, alertedNodes, dropPair, dropDependent, purgeNode, type BreakAnalysis } from "./integrity";
 import { persist, pickFile, openPath, DEFAULT_PREFS, nextLayerOrder, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap, type BreakEvent } from "./api";
 import { t, setLang } from "./i18n";
-import type { GraphNode, GraphEdge, GraphModel } from "../core/types";
+import type { GraphNode, GraphEdge, GraphModel, Section } from "../core/types";
 import { toSgm, fromSgm } from "../core/sgm";
 import { isDark, MUTED } from "./theme";
 
@@ -61,6 +62,7 @@ export function Editor({
   const [redoStack, setRedoStack] = useState<ViewerState[]>([]);
   const [themeKey, setThemeKey] = useState(0);
   const [overlay, setOverlay] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
+  const [bandPanel, setBandPanel] = useState<{ section: Section; central: GraphNode; x: number; y: number } | null>(null);
   const [edgesPanel, setEdgesPanel] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
   const [edgeOverlay, setEdgeOverlay] = useState<{ id: string; source: string; target: string; deletable: boolean; x: number; y: number } | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
@@ -904,25 +906,27 @@ export function Editor({
     { label: t("menu.edit.prefs"), onClick: () => setPrefsOpen(true) },
   ];
   const nodeMenu = (node: GraphNode, x: number, y: number): ContextMenuItem[] => {
+    // The central is the band's representative: its context menu opens the band panel.
+    if (node.kind === "section") {
+      const section = model.sections.find((s) => s.id === node.sectionId);
+      if (!section) return [];
+      return [{ label: t("band.panel.open"), onClick: () => { setOverlay(null); setEdgeOverlay(null); setBandPanel({ section, central: node, x, y }); } }];
+    }
     const items: ContextMenuItem[] = [
       { label: t("ctx.openDetails"), onClick: () => { setEdgeOverlay(null); setSelectedEdge(null); setSelectedNode(node.id); setOverlay({ node, x, y }); } },
       { label: node.locked ? t("ctx.unlock") : t("ctx.lock"), onClick: () => onSetNodeMeta(node.id, { locked: !node.locked }) },
+      { label: t("ctx.connect"), onClick: () => { setOverlay(null); setConnectFrom(node); } },
+      { label: t("ctx.manageEdges"), onClick: () => { setOverlay(null); setEdgesPanel({ node, x, y }); } },
+      { label: t("ctx.addComment"), onClick: () => onAddComment(node.id) },
     ];
-    if (node.kind !== "section") {
+    if (alertMap.has(node.id)) {
       items.push(
-        { label: t("ctx.connect"), onClick: () => { setOverlay(null); setConnectFrom(node); } },
-        { label: t("ctx.manageEdges"), onClick: () => { setOverlay(null); setEdgesPanel({ node, x, y }); } },
-        { label: t("ctx.addComment"), onClick: () => onAddComment(node.id) },
+        { label: "", onClick: () => {}, separator: true },
+        { label: t("ctx.rebuild"), onClick: () => setRebuildOpen(true) },
+        { label: t("ctx.unlinkAlert"), onClick: () => unlinkNodeEverywhere(node.id) },
       );
-      if (alertMap.has(node.id)) {
-        items.push(
-          { label: "", onClick: () => {}, separator: true },
-          { label: t("ctx.rebuild"), onClick: () => setRebuildOpen(true) },
-          { label: t("ctx.unlinkAlert"), onClick: () => unlinkNodeEverywhere(node.id) },
-        );
-      }
-      items.push({ label: "", onClick: () => {}, separator: true }, { label: t("common.delete"), danger: true, onClick: () => onRequestDeleteNode(node.id) });
     }
+    items.push({ label: "", onClick: () => {}, separator: true }, { label: t("common.delete"), danger: true, onClick: () => onRequestDeleteNode(node.id) });
     return items;
   };
   const edgeMenu = (id: string, source: string, target: string, x: number, y: number): ContextMenuItem[] => {
@@ -996,6 +1000,13 @@ export function Editor({
             setEdgeOverlay(null);
             setOverlay({ node, x, y });
           }}
+          onActivateBand={(node, x, y) => {
+            const section = model.sections.find((s) => s.id === node.sectionId);
+            if (!section) return;
+            setOverlay(null);
+            setEdgeOverlay(null);
+            setBandPanel({ section, central: node, x, y });
+          }}
           onActivateEdge={(id, source, target, x, y) => {
             setOverlay(null);
             setEdgeOverlay({ id, source, target, deletable: !id.startsWith("branch:"), x, y });
@@ -1003,12 +1014,14 @@ export function Editor({
           onPaneClick={() => {
             setOverlay(null);
             setEdgeOverlay(null);
+            setBandPanel(null);
             setSelectedNode(null);
             setSelectedEdge(null);
           }}
           onCloseOverlays={() => {
             setOverlay(null);
             setEdgeOverlay(null);
+            setBandPanel(null);
           }}
           onSelectionChange={onSelectionIds}
           selected={selectedNode}
@@ -1052,6 +1065,16 @@ export function Editor({
           onDelete={onRequestDeleteNode}
           alerted={alertMap.has(overlay.node.id)}
           onUnlinkAlert={unlinkNodeEverywhere}
+        />
+      )}
+
+      {bandPanel && (
+        <BandPanel
+          section={model.sections.find((s) => s.id === bandPanel.section.id) ?? bandPanel.section}
+          central={model.nodes.find((n) => n.id === bandPanel.central.id) ?? bandPanel.central}
+          at={{ x: bandPanel.x, y: bandPanel.y }}
+          onClose={() => setBandPanel(null)}
+          onSetNodeMeta={onSetNodeMeta}
         />
       )}
 

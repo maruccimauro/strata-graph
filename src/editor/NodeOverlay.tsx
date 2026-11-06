@@ -65,11 +65,11 @@ function IconAction({ icon, title, onClick, danger }: { icon: string; title: str
 }
 
 /** epoch ms -> value for <input type="datetime-local"> in the viewer's local time. */
-function toLocalInput(ms?: number): string {
+export function toLocalInput(ms?: number): string {
   if (!ms) return "";
   return new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
-function fromLocalInput(v: string): number | undefined {
+export function fromLocalInput(v: string): number | undefined {
   if (!v) return undefined;
   const ms = new Date(v).getTime();
   return Number.isNaN(ms) ? undefined : ms;
@@ -92,7 +92,7 @@ function formatCountdown(ms: number): string {
 }
 
 /** Live countdown to the due date; red and negative once overdue. */
-function Countdown({ dueAt }: { dueAt: number }) {
+export function Countdown({ dueAt }: { dueAt: number }) {
   const [, tick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => tick((x) => x + 1), 1000);

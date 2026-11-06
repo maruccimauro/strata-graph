@@ -95,9 +95,9 @@ function DocNodeImpl({ id, data, selected }: NodeProps) {
       {(d.locked || d.dueAt) && (
         <div style={{ position: "absolute", top: 4, right: 6, display: "flex", alignItems: "center", gap: 3, fontSize: 9 }}>
           {d.dueAt && (
-            <span title="Due date" style={{ width: 7, height: 7, borderRadius: "50%", background: dueColor(d.dueAt), display: "inline-block" }} />
+            <span title={t("node.due.tip")} style={{ width: 7, height: 7, borderRadius: "50%", background: dueColor(d.dueAt), display: "inline-block" }} />
           )}
-          {d.locked && <span title="Locked (cannot move)">🔒</span>}
+          {d.locked && <span title={t("node.locked.tip")}>🔒</span>}
         </div>
       )}
       {/* 8 connection points: side centers + corners. Loose mode lets any act

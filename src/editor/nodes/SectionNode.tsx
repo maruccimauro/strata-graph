@@ -2,6 +2,8 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { accent } from "../theme";
 import { GEO } from "../../core/layout";
+import { dueColor } from "./DocNode";
+import { t } from "../i18n";
 
 export interface SectionData {
   label: string;
@@ -9,15 +11,20 @@ export interface SectionData {
   autoCount: number;
   autoTotal: number;
   manualCount: number;
+  locked?: boolean;
+  dueAt?: number;
   [key: string]: unknown;
 }
 
-/** The solid central node of a section (band label + counts). */
+/** The solid central node of a section: the band's representative. It is pinned
+ *  (never dragged, never selected) and a click opens the band panel. Shows the
+ *  band label, counts and the same status indicators as documents (N-36). */
 function SectionNodeImpl({ data }: NodeProps) {
   const d = data as SectionData;
   const col = accent(d.hue);
   return (
     <div
+      title={t("band.central.tip")}
       style={{
         width: GEO.SECTION_W,
         height: GEO.SECTION_H,
@@ -29,6 +36,8 @@ function SectionNodeImpl({ data }: NodeProps) {
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
+        cursor: "pointer",
+        position: "relative",
       }}
     >
       <div style={{ fontSize: 13, fontWeight: 800, lineHeight: 1.1 }}>{d.label}</div>
@@ -36,6 +45,14 @@ function SectionNodeImpl({ data }: NodeProps) {
         AUTO {d.autoCount}/{d.autoTotal}
         {d.manualCount > 0 ? ` · MANUAL +${d.manualCount}` : ""}
       </div>
+      {(d.locked || d.dueAt) && (
+        <div style={{ position: "absolute", top: 5, right: 7, display: "flex", alignItems: "center", gap: 3, fontSize: 9 }}>
+          {d.dueAt && (
+            <span title={t("node.due.tip")} style={{ width: 7, height: 7, borderRadius: "50%", background: dueColor(d.dueAt), display: "inline-block" }} />
+          )}
+          {d.locked && <span title={t("node.locked.tip")}>🔒</span>}
+        </div>
+      )}
       {/* source handle on the right: branches to this section's root docs */}
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
     </div>

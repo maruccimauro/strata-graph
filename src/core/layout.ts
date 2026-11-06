@@ -85,14 +85,15 @@ export function applyDefaultLayout(model: GraphModel, orientation: Orientation =
   const nodes = model.nodes.map((n) => {
     if (n.position) return n;
     if (n.kind === "section") {
+      // Pinned under the band label, indented from the start (packLayout keeps it
+      // there; this is the pre-pack default).
       const o = n.sectionId ? origins.get(n.sectionId) : undefined;
-      const sizeS = gridBandS(n.sectionId ? docsOf(model, n.sectionId).length : 0, orientation);
       if (orientation === "horizontal") {
         const top = o ? o.y : 0;
-        return { ...n, position: { x: GEO.SECTION_X, y: top + sizeS / 2 - GEO.SECTION_H / 2 } };
+        return { ...n, position: { x: GEO.SECTION_X, y: top + 34 } };
       }
       const left = o ? o.x : 0;
-      return { ...n, position: { x: left + sizeS / 2 - GEO.SECTION_W / 2, y: GEO.SECTION_Y } };
+      return { ...n, position: { x: left + GEO.SECTION_X, y: GEO.SECTION_Y } };
     }
     if (n.kind === "doc" && n.sectionId && origins.has(n.sectionId)) {
       const o = origins.get(n.sectionId)!;
@@ -151,10 +152,13 @@ export function packLayout(model: GraphModel, orientation: Orientation = "horizo
   const isH = orientation === "horizontal";
   const DS = isH ? GEO.DOC_H : GEO.DOC_W; // document extent on the stacking axis
   const DL = isH ? GEO.DOC_W : GEO.DOC_H; // document extent on the long axis
-  const CS = isH ? GEO.SECTION_H : GEO.SECTION_W; // central extent on the stacking axis
   const CL = isH ? GEO.SECTION_W : GEO.SECTION_H; // central extent on the long axis
   const CANVAS_L = isH ? GEO.CANVAS_W : GEO.CANVAS_H;
   const M = isH ? GEO.SECTION_X : GEO.SECTION_Y; // central margin from the band's long-axis start
+  // Central offset on the stacking axis so it sits just under the band label and
+  // indented from the band start (below the name in both orientations). The central
+  // is pinned here, never dragged nor following its content.
+  const INDENT_S = isH ? 34 : GEO.SECTION_X;
   const RESERVE_L = isH ? GEO.COL0 : GEO.ROW0; // long-axis room reserved before the documents (central)
   const getS = (p: { x: number; y: number }) => (isH ? p.y : p.x);
   const getL = (p: { x: number; y: number }) => (isH ? p.x : p.y);
@@ -191,13 +195,10 @@ export function packLayout(model: GraphModel, orientation: Orientation = "horizo
       }
       const c = centralBy.get(sec.id);
       if (c) {
-        if (isH) {
-          const y = c.position ? clamp(c.position.y, b.y, b.y + Math.max(0, b.height - GEO.SECTION_H)) : b.y + (b.height - GEO.SECTION_H) / 2;
-          posById.set(c.id, { x: b.x + GEO.SECTION_X, y });
-        } else {
-          const x = c.position ? clamp(c.position.x, b.x, b.x + Math.max(0, b.width - GEO.SECTION_W)) : b.x + (b.width - GEO.SECTION_W) / 2;
-          posById.set(c.id, { x, y: b.y + GEO.SECTION_Y });
-        }
+        // Pinned under the band label, indented from the start (not content-driven).
+        const st = isH ? b.y : b.x;
+        const lSt = isH ? b.x : b.y;
+        posById.set(c.id, mk(st + INDENT_S, lSt + M));
       }
     }
     const nodes = model.nodes.map((n) => (posById.has(n.id) ? { ...n, position: posById.get(n.id)! } : n));
@@ -276,10 +277,8 @@ export function packLayout(model: GraphModel, orientation: Orientation = "horizo
     }
     const c = centralBy.get(sec.id);
     if (c) {
-      const list = docsBy.get(sec.id) ?? [];
-      const raw = list.length && c.position ? getS(c.position) + deltaS : st + (sz - CS) / 2;
-      const cs = clamp(raw, st, st + Math.max(0, sz - CS));
-      posById.set(c.id, mk(cs, centralL));
+      // Pinned under the band label, indented from the start (not content-driven).
+      posById.set(c.id, mk(st + INDENT_S, centralL));
     }
   }
 

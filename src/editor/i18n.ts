@@ -290,6 +290,18 @@ const en: Dict = {
   "prefs.alertGhosts": "Ghost arrows",
   "prefs.alertGhosts.hint": "Show the dotted reconnection previews on the canvas in Rebuild relations.",
   "prefs.integrity.help": "Deleting a node that bridges other nodes raises a broken-link alert on its direct neighbors. The alert is always on; hide a banner per event, rebuild or discard each link in Rebuild relations, and undo reverts the deletion and its alert together.",
+  // node status indicators (shared by documents and the central)
+  "node.due.tip": "Due date",
+  "node.locked.tip": "Locked (cannot move)",
+  // band management: the central is the band's representative (opens the band panel)
+  "band.central.tip": "Click to open band options",
+  "band.panel.title": "Band: {label}",
+  "band.panel.open": "Band options…",
+  "band.panel.tip": "Open the options of this band",
+  "band.panel.close": "Close",
+  "band.panel.empty": "Band management lives here: color, rename, grow, nodes, order and removal.",
+  "menu.view.band": "Band options…",
+  "quickbar.band": "Band",
 };
 
 const dicts: Record<Lang, Dict> = { en };
