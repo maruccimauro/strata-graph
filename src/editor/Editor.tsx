@@ -1032,11 +1032,12 @@ export function Editor({
       if (!section) return [];
       const ordered = [...model.sections].sort((a, b) => a.order - b.order);
       const idx = ordered.findIndex((s) => s.id === section.id);
+      const isV = (prefs.layout ?? "horizontal") === "vertical";
       return [
         { label: t("band.panel.open"), onClick: () => { setOverlay(null); setEdgeOverlay(null); setBandPanel({ section, central: node, x, y }); } },
         { label: "", onClick: () => {}, separator: true },
-        { label: t("band.moveUp"), disabled: idx <= 0, onClick: () => onMoveSection(section.id, -1) },
-        { label: t("band.moveDown"), disabled: idx >= ordered.length - 1, onClick: () => onMoveSection(section.id, 1) },
+        { label: isV ? t("band.moveLeft") : t("band.moveUp"), disabled: idx <= 0, onClick: () => onMoveSection(section.id, -1) },
+        { label: isV ? t("band.moveRight") : t("band.moveDown"), disabled: idx >= ordered.length - 1, onClick: () => onMoveSection(section.id, 1) },
       ];
     }
     const items: ContextMenuItem[] = [
@@ -1208,6 +1209,7 @@ export function Editor({
           growOverridden={(state.bandGrow ?? {})[bandPanel.section.id] !== undefined}
           nodes={model.nodes.filter((n) => n.kind === "doc" && n.sectionId === bandPanel.section.id)}
           sections={model.sections}
+          vertical={(prefs.layout ?? "horizontal") === "vertical"}
           onMoveSection={onMoveSection}
           onReorderSection={onReorderSection}
           onClose={() => setBandPanel(null)}

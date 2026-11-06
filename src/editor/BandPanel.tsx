@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { Panel, Button, Field, Combobox } from "./ui/primitives";
 import { MUTED, accent } from "./theme";
 import { t } from "./i18n";
@@ -21,6 +21,8 @@ export interface BandPanelProps {
   nodes: GraphNode[];
   /** every section, for the "move all to…" picker and the reorder list. */
   sections: Section[];
+  /** vertical layout: bands stack left-to-right, so "up/down" reads "left/right". */
+  vertical: boolean;
   onMoveSection: (id: string, dir: -1 | 1) => void;
   onReorderSection: (id: string, targetIndex: number) => void;
   onClose: () => void;
@@ -56,6 +58,7 @@ export function BandPanel({
   growOverridden,
   nodes,
   sections,
+  vertical,
   onMoveSection,
   onReorderSection,
   onClose,
@@ -126,8 +129,22 @@ export function BandPanel({
     </button>
   );
 
+  /** Position indicator for the Band order entry: the previous and next position
+   *  numbers, small and muted, around the current one boxed in the band's color. */
+  const PositionHint = () => {
+    const col = accent(section.hue);
+    const small = { color: MUTED, fontSize: ".66rem", opacity: 0.6 } as const;
+    return (
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        {bandIndex > 0 && <span style={small}>{bandIndex}</span>}
+        <span style={{ fontSize: ".72rem", fontWeight: 700, color: col, border: `1px solid ${col}`, borderRadius: 4, padding: "0 5px", lineHeight: 1.5 }}>{bandIndex + 1}</span>
+        {bandIndex < ordered.length - 1 && <span style={small}>{bandIndex + 2}</span>}
+      </span>
+    );
+  };
+
   /** Full-width hub entry that opens a sub-view, with an optional status hint. */
-  const MenuItem = ({ to, label, hint }: { to: BandView; label: string; hint?: string }) => (
+  const MenuItem = ({ to, label, hint }: { to: BandView; label: string; hint?: ReactNode }) => (
     <button
       onClick={() => setView(to)}
       style={{
@@ -167,7 +184,7 @@ export function BandPanel({
           <MenuItem to="appearance" label={t("band.menu.appearance")} hint={customLabel || customHue ? t("band.menu.custom") : undefined} />
           <MenuItem to="schedule" label={t("band.menu.schedule")} hint={scheduleHint || undefined} />
           <MenuItem to="layout" label={t("band.menu.layout")} hint={grow ? t("band.menu.growOn") : t("band.menu.growOff")} />
-          <MenuItem to="order" label={t("band.reorder")} hint={`${bandIndex + 1} / ${ordered.length}`} />
+          <MenuItem to="order" label={t("band.reorder")} hint={<PositionHint />} />
           <MenuItem to="nodes" label={t("band.nodes")} hint={`${rows.length}`} />
         </div>
       )}
@@ -286,8 +303,8 @@ export function BandPanel({
                   </span>
                   <span aria-hidden style={{ width: 11, height: 11, borderRadius: 3, background: accent(s.hue), border: "1px solid var(--line)", flexShrink: 0 }} />
                   <span style={{ flex: 1, fontSize: ".8rem", fontWeight: isCurrent ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
-                  <Button variant="ghost" disabled={i === 0} title={t("band.moveUp")} onClick={() => onMoveSection(id, -1)}>↑</Button>
-                  <Button variant="ghost" disabled={i === displayIds.length - 1} title={t("band.moveDown")} onClick={() => onMoveSection(id, 1)}>↓</Button>
+                  <Button variant="ghost" disabled={i === 0} title={vertical ? t("band.moveLeft") : t("band.moveUp")} onClick={() => onMoveSection(id, -1)}>{vertical ? "←" : "↑"}</Button>
+                  <Button variant="ghost" disabled={i === displayIds.length - 1} title={vertical ? t("band.moveRight") : t("band.moveDown")} onClick={() => onMoveSection(id, 1)}>{vertical ? "→" : "↓"}</Button>
                 </div>
               );
             })}

@@ -313,6 +313,8 @@ const en: Dict = {
   "band.reorder.drag": "Drag to reorder this band",
   "band.moveUp": "Move band up",
   "band.moveDown": "Move band down",
+  "band.moveLeft": "Move band left",
+  "band.moveRight": "Move band right",
   "band.nodes": "Nodes",
   "band.nodes.empty": "This band has no nodes yet.",
   "band.node.open": "Open node details",
