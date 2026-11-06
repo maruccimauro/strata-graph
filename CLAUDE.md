@@ -68,11 +68,12 @@ summary.
 - **i18n-ready (mandatory)**: every **new** UI string goes through the `t()` layer
   (`src/editor/i18n.ts`), never hardcoded; existing ones are migrated
   incrementally; default language English. Detail: @.claude/rules/i18n.md
-- **Keyboard and pointer notation (HARD)**: shortcuts in user-facing text are a
-  single bracketed token, keys in UPPERCASE and pointer actions in Title Case,
-  joined with ` + ` (for example `[ALT + Mouse Hover]`, `[CTRL + Z]`, `[DELETE]`).
-  Applies to UI and wiki; migrate existing ones incrementally. Detail:
-  @.claude/rules/keyboard-notation.md
+- **Keyboard and pointer notation (HARD)**: keys in user-facing text render each
+  as a `<kbd>` keycap in natural capitalization, joined with `+` (for example
+  `<kbd>Ctrl</kbd>+<kbd>Z</kbd>`, `<kbd>Delete</kbd>`); the program uses the `Kbd`
+  and `Shortcut` primitives, and plain-text-only contexts (native tooltips) fall
+  back to `Ctrl+Z`. Applies to UI and wiki; migrate existing ones incrementally.
+  Detail: @.claude/rules/keyboard-notation.md
 - **Wiki in the same batch (do not defer)**: a feature's wiki page is
   written/updated in the **same batch**; superseded old content is removed; a
   feature without its wiki is not finished. Detail: @.claude/rules/wiki.md

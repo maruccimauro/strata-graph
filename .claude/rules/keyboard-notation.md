@@ -1,28 +1,45 @@
 # Rule: Keyboard and pointer notation (HARD)
 
-Every reference to a keyboard key, or a key combined with a pointer action, in
-**user-facing text** (UI strings through `t()`, tooltips, the wiki, and any other
-public copy) is written as a single bracketed token.
+Every reference to a keyboard key in **user-facing text** (UI strings rendered
+through `t()`, the wiki, and any other public copy) renders each key as a
+`<kbd>` keycap, never as plain text or a bracketed token.
 
 ## Format
 
-- Wrap the whole shortcut in square brackets: `[ ... ]`.
-- Write keyboard key names in **UPPERCASE**: `ALT`, `CTRL`, `SHIFT`, `ESC`,
-  `ENTER`, `DELETE`, `BACKSPACE`, `N`, `Z`, and so on.
-- Write pointer actions in **Title Case** words: `Mouse Hover`, `Left Click`,
-  `Right Click`, `Double Click`, `Drag`.
-- Join the parts of a combination with ` + ` (space, plus, space).
+- Wrap **each** key in its own `<kbd>` element: `<kbd>Ctrl</kbd>`, `<kbd>N</kbd>`,
+  `<kbd>Delete</kbd>`.
+- Write key names in their **natural keycap capitalization**: `Ctrl`, `Shift`,
+  `Alt`, `Esc`, `Enter`, `Delete`, `Backspace`, `Cmd`, `N`, `Z`, `Y`.
+- Join a combination with a literal `+` between the keycaps, no surrounding
+  spaces: `<kbd>Ctrl</kbd>+<kbd>Z</kbd>`.
+- A key combined with a pointer action keeps the pointer action as a normal word
+  after ` + ` (spaces): `<kbd>Alt</kbd> + hover`, `<kbd>Shift</kbd> + click`.
+- Pointer-only actions (double-click, right-click, drag) are described in prose
+  or bold, not inside `<kbd>`; `<kbd>` is for keyboard keys only.
+
+## In the program (React / JSX)
+
+Render keys with the shared `<kbd>` primitives, not a hand-written string:
+
+- `Kbd` and `Shortcut` live in `src/editor/ui/primitives.tsx`. `Shortcut` takes a
+  plain combination (for example `keys="Ctrl+Z"`) and renders each key as a
+  `<kbd>` keycap joined by `+`.
+
+### Plain-text-only contexts
+
+Some places cannot render HTML: a native `title` tooltip, a serialized string, a
+`window.prompt`/`alert`. There, write the keys plainly joined with `+` (for
+example `Ctrl+Z`); never emit literal `<kbd>` tags into plain text.
 
 ## Examples
 
-- `[ALT + Mouse Hover]`
-- `[CTRL + Z]`
-- `[DELETE]`
-- `[ESC]`
-- `[N]`
-- `[Right Click]`
-- `[DOUBLE Click]` is wrong; use `[Double Click]` (pointer action, Title Case).
-- `Ctrl+Z`, `Alt`, `<kbd>Delete</kbd>` are wrong; use the bracketed form.
+- `<kbd>Ctrl</kbd>+<kbd>Z</kbd>` (undo)
+- `<kbd>Delete</kbd>`
+- `<kbd>Esc</kbd>`
+- `<kbd>N</kbd>`
+- `<kbd>Alt</kbd> + hover`
+- `[CTRL + Z]`, `Ctrl+Z` (as rendered copy), `Alt` are wrong in rendered text;
+  use the `<kbd>` form.
 
 ## Scope
 

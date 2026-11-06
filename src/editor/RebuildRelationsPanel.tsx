@@ -50,10 +50,10 @@ const clamp = (v: number) => Math.max(1, Math.min(3, v));
 export function RebuildRelationsPanel(p: RebuildRelationsPanelProps) {
   const { alerts, labelOf, prefs, onSetPrefs, activeDep, onActivateDep, onHoverOption, collapsed, onToggleCollapse, onLocate } = p;
 
-  const IconBtn = ({ on, label, onClick }: { on?: boolean; label: string; onClick: () => void }) => (
+  const IconBtn = ({ on, label, tip, onClick }: { on?: boolean; label: string; tip?: string; onClick: () => void }) => (
     <button
       onClick={onClick}
-      title={label}
+      title={tip ?? label}
       style={{ border: "1px solid var(--line)", background: on ? "color-mix(in srgb, var(--accent) 16%, transparent)" : "var(--panel)", color: on === false ? MUTED : "var(--ink)", borderColor: on ? "var(--accent)" : "var(--line)", borderRadius: 6, minWidth: 26, height: 24, cursor: "pointer", fontSize: ".82rem", padding: "0 6px" }}
     >
       {label}
@@ -120,17 +120,18 @@ export function RebuildRelationsPanel(p: RebuildRelationsPanelProps) {
       onClose={p.onClose}
       style={{ right: 16, top: 96, width: 384, maxWidth: "calc(100vw - 32px)", maxHeight: "76vh", overflowY: "auto" }}
     >
-      {/* quick-access bar: alert wave + ghost controls */}
+      {/* quick-access bar: the two display toggles (waves, ghost arrows) grouped
+          first, then the wave intensity and speed steppers. */}
       <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", paddingBottom: 8, marginBottom: 8, borderBottom: "1px solid var(--line)" }}>
-        <IconBtn on={prefs.alertWaves} label="〜" onClick={() => onSetPrefs({ alertWaves: !prefs.alertWaves })} />
+        <IconBtn on={prefs.alertWaves} label="〜" tip={t("rebuild.ctl.waves.tip")} onClick={() => onSetPrefs({ alertWaves: !prefs.alertWaves })} />
+        <IconBtn on={prefs.alertGhosts} label="⇢" tip={t("rebuild.ctl.ghosts.tip")} onClick={() => onSetPrefs({ alertGhosts: !prefs.alertGhosts })} />
+        <span style={{ width: 1, height: 18, background: "var(--line)", margin: "0 3px" }} />
         <span style={{ fontSize: ".68rem", color: MUTED }}>{t("rebuild.ctl.intensity")}</span>
-        <IconBtn label="−" onClick={() => onSetPrefs({ alertWaveIntensity: clamp(prefs.alertWaveIntensity - 1) })} />
-        <IconBtn label="+" onClick={() => onSetPrefs({ alertWaveIntensity: clamp(prefs.alertWaveIntensity + 1) })} />
+        <IconBtn label="−" tip={t("rebuild.ctl.intensity.less")} onClick={() => onSetPrefs({ alertWaveIntensity: clamp(prefs.alertWaveIntensity - 1) })} />
+        <IconBtn label="+" tip={t("rebuild.ctl.intensity.more")} onClick={() => onSetPrefs({ alertWaveIntensity: clamp(prefs.alertWaveIntensity + 1) })} />
         <span style={{ fontSize: ".68rem", color: MUTED }}>{t("rebuild.ctl.speed")}</span>
-        <IconBtn label="−" onClick={() => onSetPrefs({ alertWaveSpeed: clamp(prefs.alertWaveSpeed - 1) })} />
-        <IconBtn label="+" onClick={() => onSetPrefs({ alertWaveSpeed: clamp(prefs.alertWaveSpeed + 1) })} />
-        <span style={{ flex: 1 }} />
-        <IconBtn on={prefs.alertGhosts} label="⇢" onClick={() => onSetPrefs({ alertGhosts: !prefs.alertGhosts })} />
+        <IconBtn label="−" tip={t("rebuild.ctl.speed.less")} onClick={() => onSetPrefs({ alertWaveSpeed: clamp(prefs.alertWaveSpeed - 1) })} />
+        <IconBtn label="+" tip={t("rebuild.ctl.speed.more")} onClick={() => onSetPrefs({ alertWaveSpeed: clamp(prefs.alertWaveSpeed + 1) })} />
       </div>
 
       {alerts.length === 0 ? (

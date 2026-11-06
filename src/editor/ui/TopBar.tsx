@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Button } from "./primitives";
+import { Button, Shortcut } from "./primitives";
 import { MUTED, PANEL, INK } from "../theme";
 import { t } from "../i18n";
 import { nextLayerOrder, type Prefs, type Mode } from "../api";
@@ -60,7 +60,7 @@ function MenuItem({ label, onClick, shortcut, disabled, title }: { label: string
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       <span>{label}</span>
-      {shortcut && <span style={{ color: MUTED, fontSize: ".72rem" }}>{shortcut}</span>}
+      {shortcut && <Shortcut keys={shortcut} />}
     </button>
   );
 }

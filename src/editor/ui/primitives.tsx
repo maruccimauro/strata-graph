@@ -43,6 +43,47 @@ export function Button({
   );
 }
 
+/** A single key rendered as a keycap, the `<kbd>` form used across the UI and the
+ *  wiki (see the keyboard-notation rule). Keys keep their natural capitalization. */
+export function Kbd({ children }: { children: ReactNode }) {
+  return (
+    <kbd
+      style={{
+        display: "inline-block",
+        minWidth: "1.1em",
+        padding: "0 5px",
+        borderRadius: 4,
+        border: "1px solid var(--line)",
+        borderBottomWidth: 2,
+        background: "color-mix(in srgb, var(--muted) 8%, var(--panel))",
+        color: MUTED,
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: ".72em",
+        lineHeight: 1.5,
+        textAlign: "center",
+      }}
+    >
+      {children}
+    </kbd>
+  );
+}
+
+/** A keyboard shortcut rendered as keycaps. `keys` is a plain combination such as
+ *  "Ctrl+Z" or "N"; each key becomes a `<kbd>` joined by a literal plus. */
+export function Shortcut({ keys }: { keys: string }) {
+  const parts = keys.split("+").map((k) => k.trim());
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+      {parts.map((k, i) => (
+        <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+          {i > 0 && <span style={{ color: MUTED, fontSize: ".72em" }}>+</span>}
+          <Kbd>{k}</Kbd>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /** Reusable floating panel — the single shape for every config / overlay. */
 export function Panel({
   title,
