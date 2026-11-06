@@ -8,6 +8,7 @@ docs/wiki/.vitepress/dist/
 docs/wiki/.vitepress/cache/
 
 # Local / private
+.local/
 *.local
 *.local.md
 .env
