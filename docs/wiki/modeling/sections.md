@@ -16,7 +16,7 @@ Each section has a **central node**: a solid, labeled node that sits in the band
 
 The central node is **pinned**: it sits just under the band label, indented from the start, in both the horizontal and vertical layouts, and it never moves. It is not dragged and the rubber band never selects it.
 
-Instead, the central is the entry point to the band's options. **Click** it, or right-click it and choose **Band options…**, to open the **band panel**, where the band is managed. The panel currently holds the band's own **lock** and **due date**; more band management arrives in later releases.
+Instead, the central is the entry point to the band's options. **Click** it, or right-click it and choose **Band options…**, to open the **band panel**, where the band is managed: its name, color, lock and due date, per-band grow, and the list of its nodes with bulk actions.
 
 The central shows two counts:
 
@@ -49,6 +49,20 @@ This is on by default. Toggle **Grow bands to dragged content** from the **View*
 The band panel has its own **⇲ Grow** toggle that overrides the global setting for that band: a band can grow while the rest are frozen, or stay frozen while the rest grow. The global toggle is the default for bands you have not overridden; **Reset** returns a band to following it. A frozen band keeps its current size and confines its nodes; the bands around it still pack to make room when a growing neighbor changes size.
 
 **Re-arrange** (also in the band panel) tidies that band's nodes back to the grid and sizes the band to its content, without touching the other bands.
+
+## Managing a band's nodes
+
+The band panel lists every node in the band under **Nodes**. Not-generated nodes appear faded, and an unavailable one is struck through, the same as on the canvas. Each row has:
+
+- The node **name**: click it to open the node's own details overlay, where you edit its due date, files and section.
+- A **lock** toggle that locks or unlocks just that node.
+- A **delete** button, shown only for nodes that actually exist (a not-generated node has nothing to delete).
+
+Below the list, **Bulk actions** act on the whole band at once:
+
+- **Lock all** / **Unlock all** set the lock on every node in the band.
+- **Move all to** sends every node to another band, chosen from a filterable list. The band is left empty; it is not removed.
+- **Delete all nodes** removes every existing node in the band after a confirmation. Nodes that others depended on raise a single rebuild alert, and the whole deletion is undone in one step. The band itself stays.
 
 ::: info
 Moving a node to another section with the **Section** list places it in the target band's grid, rather than keeping its old spot.

@@ -36,6 +36,12 @@ history; the project carried no tagged releases before this file was introduced.
   follow the global toggle again.
 - Re-arrange action in the band panel that tidies a single band's nodes back to
   the grid and sizes it to its content, leaving the other bands untouched.
+- Node list in the band panel: every node in the band, with a per-node lock
+  toggle, a delete action for existing nodes, and a click on the name to open the
+  node's details overlay.
+- Bulk actions in the band panel: lock or unlock every node in the band, move all
+  of them to another band, and delete all existing nodes at once with one
+  confirmation and a single, undoable rebuild alert.
 
 ### Changed
 
