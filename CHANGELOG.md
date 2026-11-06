@@ -52,6 +52,10 @@ history; the project carried no tagged releases before this file was introduced.
 
 ### Changed
 
+- Band reorder controls follow the layout orientation: the Move band actions and
+  the panel arrows read up/down in the horizontal layout and left/right in the
+  vertical one. The Band order menu entry shows the band's position framed between
+  its neighbors instead of a plain count.
 - Section central nodes are now pinned under their band label in both layouts and
   no longer move: they are not draggable and the rubber band does not select them.
   A central is the band's representative rather than a positionable node.

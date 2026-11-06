@@ -58,7 +58,7 @@ The band panel lists every band, in order, under **Band order**, with the curren
 - The **grip** (**⠿**) in the list drags a band to a new position; the list previews the new order as you drag and commits it when you drop.
 - On the canvas, each band label has its own **⠿** grip: drag it along the stacking direction and a line shows where the band will land; release to drop it there.
 
-A right-click on a central also offers **Move band up** and **Move band down**. Every reorder is a single undo step, and the canvas re-packs the bands into the new order immediately. The order is a display override; it does not change the underlying **Strata Graph Model**.
+A right-click on a central also offers **Move band up** and **Move band down**. In the vertical layout, where bands stack left to right, these read **Move band left** and **Move band right** and the arrows point sideways. Every reorder is a single undo step, and the canvas re-packs the bands into the new order immediately. The order is a display override; it does not change the underlying **Strata Graph Model**.
 
 The band panel lists every node in the band under **Nodes**. Not-generated nodes appear faded, and an unavailable one is struck through, the same as on the canvas. Each row has:
 
