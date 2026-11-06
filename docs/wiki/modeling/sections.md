@@ -16,7 +16,7 @@ Each section has a **central node**: a solid, labeled node that sits in the band
 
 The central node is **pinned**: it sits just under the band label, indented from the start, in both the horizontal and vertical layouts, and it never moves. It is not dragged and the rubber band never selects it.
 
-Instead, the central is the entry point to the band's options. **Click** it, or right-click it and choose **Band options…**, to open the **band panel**, where the band is managed: its name, color, lock and due date, per-band grow, and the list of its nodes with bulk actions.
+Instead, the central is the entry point to the band's options. **Click** it, or right-click it and choose **Band options…**, to open the **band panel**. The panel is a compact menu that keeps each area on its own screen, so it never grows past the viewport: pick **Appearance**, **Schedule**, **Grow & arrange**, **Band order** or **Nodes**, and a **‹ Back** link returns to the menu. Each entry shows a short status (the band's position, its node count, whether it grows). The sections below describe what lives in each.
 
 The central shows two counts:
 

@@ -54,6 +54,9 @@ history; the project carried no tagged releases before this file was introduced.
   A central is the band's representative rather than a positionable node.
 - Section color moved out of Preferences into the band panel, alongside the new
   rename control; the Preferences "Sections" category was removed.
+- Band panel reorganized as a compact menu: Appearance, Schedule, Grow & arrange,
+  Band order and Nodes each open on their own screen with a Back link, so the
+  panel no longer stacks every control into one list that overflows the viewport.
 
 - `BACKLOG.md` restructured to track only pending work, with one canonical entry
   per requirement and explicit status and priority. Completed items are no longer
