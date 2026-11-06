@@ -55,11 +55,13 @@ export function buildRenderModel(graph: GraphModel, state: ViewerState): GraphMo
     .concat(state.manualEdges ?? [])
     .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
 
+  const orders = state.sectionOrder ?? {};
   const sections = graph.sections.map((s) => {
     const hue = hues[s.id];
     const label = labels[s.id];
-    if (hue === undefined && label === undefined) return s;
-    return { ...s, hue: hue ?? s.hue, label: label ?? s.label };
+    const order = orders[s.id];
+    if (hue === undefined && label === undefined && order === undefined) return s;
+    return { ...s, hue: hue ?? s.hue, label: label ?? s.label, order: order ?? s.order };
   });
 
   return { ...graph, sections, nodes, edges };

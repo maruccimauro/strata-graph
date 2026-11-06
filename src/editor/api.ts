@@ -126,6 +126,9 @@ export interface ViewerState {
   sectionHues?: Record<string, number>;
   /** per-section label overrides over the built-in model's names. */
   sectionLabels?: Record<string, string>;
+  /** per-section order overrides over the built-in model's order; when present it
+   *  is a full, contiguous map (0..n-1) produced by the reorder reducer. */
+  sectionOrder?: Record<string, number>;
   /** per-section auto-grow override over the global `prefs.autoGrowBands`; a section
    *  absent from the map follows the global toggle. */
   bandGrow?: Record<string, boolean>;

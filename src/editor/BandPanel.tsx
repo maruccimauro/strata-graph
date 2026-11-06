@@ -1,3 +1,4 @@
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Panel, Button, Field, Combobox } from "./ui/primitives";
 import { MUTED, accent } from "./theme";
 import { t } from "./i18n";
@@ -18,8 +19,10 @@ export interface BandPanelProps {
   growOverridden: boolean;
   /** the band's doc nodes (central excluded), already merged with overrides. */
   nodes: GraphNode[];
-  /** every section, for the "move all to…" picker (the current band is filtered out). */
+  /** every section, for the "move all to…" picker and the reorder list. */
   sections: Section[];
+  onMoveSection: (id: string, dir: -1 | 1) => void;
+  onReorderSection: (id: string, targetIndex: number) => void;
   onClose: () => void;
   onSetNodeMeta: (id: string, meta: { createdAt?: number; dueAt?: number; locked?: boolean }) => void;
   onSetNodeMetaMany: (ids: string[], meta: { dueAt?: number; locked?: boolean }) => void;
@@ -49,6 +52,8 @@ export function BandPanel({
   growOverridden,
   nodes,
   sections,
+  onMoveSection,
+  onReorderSection,
   onClose,
   onSetNodeMeta,
   onSetNodeMetaMany,
@@ -71,6 +76,38 @@ export function BandPanel({
   const allIds = rows.map((n) => n.id);
   const deletableIds = rows.filter((n) => n.status !== "missing").map((n) => n.id);
   const otherSections = sections.filter((s) => s.id !== section.id);
+
+  // Band reorder list: ordered bands, with a live local preview while dragging a
+  // row by its grip (midpoint-swap). The move is committed once on drop, so a
+  // drag is a single undo step; the ↑/↓ arrows commit one step each.
+  const ordered = [...sections].sort((a, b) => a.order - b.order);
+  const byId = (id: string) => sections.find((s) => s.id === id);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string[] | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const displayIds = preview ?? ordered.map((s) => s.id);
+
+  const gripDown = (e: ReactPointerEvent, id: string) => {
+    e.preventDefault();
+    setDragId(id);
+    setPreview(ordered.map((s) => s.id));
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const gripMove = (e: ReactPointerEvent) => {
+    if (!dragId || !preview) return;
+    const above = preview.filter((id) => id !== dragId && (rowRefs.current[id]?.getBoundingClientRect().top ?? 0) + (rowRefs.current[id]?.getBoundingClientRect().height ?? 0) / 2 < e.clientY).length;
+    const next = preview.filter((id) => id !== dragId);
+    next.splice(above, 0, dragId);
+    if (next.join() !== preview.join()) setPreview(next);
+  };
+  const gripUp = () => {
+    if (dragId && preview) {
+      const idx = preview.indexOf(dragId);
+      if (idx !== ordered.findIndex((s) => s.id === dragId)) onReorderSection(dragId, idx);
+    }
+    setDragId(null);
+    setPreview(null);
+  };
 
   const ResetLink = ({ onClick }: { onClick: () => void }) => (
     <button
@@ -161,6 +198,40 @@ export function BandPanel({
         <Button title={t("band.rearrange.tip")} onClick={() => onResetBandLayout(section.id)} style={{ marginLeft: "auto" }}>
           {t("band.rearrange")}
         </Button>
+      </div>
+
+      {/* band reorder list */}
+      <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid var(--line)" }}>
+        <div style={{ fontSize: ".78rem", fontWeight: 600, marginBottom: 6 }}>{t("band.reorder")}</div>
+        <div onPointerMove={gripMove} onPointerUp={gripUp} onPointerCancel={gripUp} style={{ maxHeight: 170, overflowY: "auto", margin: "0 -2px" }}>
+          {displayIds.map((id, i) => {
+            const s = byId(id);
+            if (!s) return null;
+            const isCurrent = s.id === section.id;
+            return (
+              <div
+                key={id}
+                ref={(el) => { rowRefs.current[id] = el; }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, padding: "3px 4px", borderRadius: 5,
+                  background: isCurrent ? "rgba(127,127,127,.14)" : "transparent", opacity: dragId === id ? 0.45 : 1,
+                }}
+              >
+                <span
+                  onPointerDown={(e) => gripDown(e, id)}
+                  title={t("band.reorder.drag")}
+                  style={{ cursor: "grab", color: MUTED, fontSize: ".9rem", lineHeight: 1, touchAction: "none", userSelect: "none" }}
+                >
+                  ⠿
+                </span>
+                <span aria-hidden style={{ width: 11, height: 11, borderRadius: 3, background: accent(s.hue), border: "1px solid var(--line)", flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: ".8rem", fontWeight: isCurrent ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
+                <Button variant="ghost" disabled={i === 0} title={t("band.moveUp")} onClick={() => onMoveSection(id, -1)}>↑</Button>
+                <Button variant="ghost" disabled={i === displayIds.length - 1} title={t("band.moveDown")} onClick={() => onMoveSection(id, 1)}>↓</Button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* node list + bulk actions */}

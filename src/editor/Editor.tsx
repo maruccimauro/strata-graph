@@ -19,6 +19,7 @@ import { Panel, Button } from "./ui/primitives";
 import { PreferencesPanel } from "./ui/PreferencesPanel";
 import { getBuiltIn, buildDemoModel } from "../models";
 import { buildRenderModel } from "./model";
+import { reorderSections, moveSection } from "../core/reorder";
 import { analyzeBreak, analyzeBreakMany, buildBreakEvent, alertedNodes, dropPair, dropDependent, purgeNode, type BreakAnalysis } from "./integrity";
 import { persist, pickFile, openPath, DEFAULT_PREFS, nextLayerOrder, type Boot, type ViewerState, type Prefs, type Startup, type Orientation, type BandBoxMap, type BreakEvent } from "./api";
 import { t, setLang } from "./i18n";
@@ -558,6 +559,18 @@ export function Editor({
     [performBulkDelete],
   );
 
+  /** Reorder bands: persist a full, contiguous sectionOrder override. One moves a
+   *  band one step (context menu / arrows), the other drops it at an index (list
+   *  drag). The layout re-packs from the new order. */
+  const onMoveSection = useCallback(
+    (id: string, dir: -1 | 1) => commit((s) => ({ ...s, sectionOrder: moveSection(model.sections, id, dir) })),
+    [commit, model.sections],
+  );
+  const onReorderSection = useCallback(
+    (id: string, targetIndex: number) => commit((s) => ({ ...s, sectionOrder: reorderSections(model.sections, id, targetIndex) })),
+    [commit, model.sections],
+  );
+
   const onSetNodeMeta = useCallback(
     (id: string, m: { createdAt?: number; dueAt?: number; locked?: boolean }) =>
       commit((s) => {
@@ -1017,7 +1030,14 @@ export function Editor({
     if (node.kind === "section") {
       const section = model.sections.find((s) => s.id === node.sectionId);
       if (!section) return [];
-      return [{ label: t("band.panel.open"), onClick: () => { setOverlay(null); setEdgeOverlay(null); setBandPanel({ section, central: node, x, y }); } }];
+      const ordered = [...model.sections].sort((a, b) => a.order - b.order);
+      const idx = ordered.findIndex((s) => s.id === section.id);
+      return [
+        { label: t("band.panel.open"), onClick: () => { setOverlay(null); setEdgeOverlay(null); setBandPanel({ section, central: node, x, y }); } },
+        { label: "", onClick: () => {}, separator: true },
+        { label: t("band.moveUp"), disabled: idx <= 0, onClick: () => onMoveSection(section.id, -1) },
+        { label: t("band.moveDown"), disabled: idx >= ordered.length - 1, onClick: () => onMoveSection(section.id, 1) },
+      ];
     }
     const items: ContextMenuItem[] = [
       { label: t("ctx.openDetails"), onClick: () => { setEdgeOverlay(null); setSelectedEdge(null); setSelectedNode(node.id); setOverlay({ node, x, y }); } },
@@ -1187,6 +1207,8 @@ export function Editor({
           growOverridden={(state.bandGrow ?? {})[bandPanel.section.id] !== undefined}
           nodes={model.nodes.filter((n) => n.kind === "doc" && n.sectionId === bandPanel.section.id)}
           sections={model.sections}
+          onMoveSection={onMoveSection}
+          onReorderSection={onReorderSection}
           onClose={() => setBandPanel(null)}
           onSetNodeMeta={onSetNodeMeta}
           onSetNodeMetaMany={onSetNodeMetaMany}
